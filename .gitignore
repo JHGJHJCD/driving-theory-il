@@ -1,0 +1,12 @@
+__pycache__/
+node_modules/
+test-results/
+*.log.tmp
+tools/test/out/
+tools/law/*.txt
+tools/law/תקנות_התעבורה.json
+tools/law/פקודת_התעבורה.json
+data/raw/tq*.json
+tools/official/cache/*
+# v1.13 (review #9 D6): the Compensation Law API response is kept so its src_sha256 is reproducible from the repo
+!tools/official/cache/pitzuim_rev2968550.json
