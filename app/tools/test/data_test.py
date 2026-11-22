@@ -1,0 +1,963 @@
+#!/usr/bin/env python3
+"""Build-time data checks (run after tools/lessons.py + tools/coverage.py; exit 1 on any failure):
+every bank question is mapped to a lesson, lesson quizzes / sources / sign table are consistent,
+eligibility lines cite existing sections, the review-2 content fixes are in place, SW lists the data files."""
+import sys, json, os, re
+R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+J = lambda *p: json.load(open(os.path.join(R, *p), encoding='utf-8'))
+T = lambda *p: open(os.path.join(R, *p), encoding='utf-8').read()
+fails = []
+def ok(c, msg):
+    print(('  ok   ' if c else '  FAIL ') + msg)
+    if not c: fails.append(msg)
+
+Q = J('data', 'q.he.json'); ids = {q['id'] for q in Q}; byid = {q['id']: q for q in Q}
+LALL = J('data', 'lessons.json')['lessons']; LB = {l['id']: l for l in LALL}
+L = [l for l in LALL if 'bank' not in l]   # taught lessons; v1.10 bank-only lessons are checked in section 5c
+SRC = J('data', 'sources.json'); COV = J('data', 'coverage.json'); SG = J('data', 'signs.json')
+
+# 1. every question mapped
+cq = COV['q']
+unm = [i for i in ids if str(i) not in cq or (cq[str(i)][0] != 'n' and not cq[str(i)][1])]
+ok(not unm, f'every taught / partly taught question is mapped to a lesson ({len(ids)} questions, unmapped {sorted(unm)[:10]})')
+ok(set(map(int, cq)) == ids, 'coverage.json has exactly the bank ids')
+bad = [(i, l) for i, e in cq.items() for l in e[1] if l not in LB]
+ok(not bad, f'coverage lessons exist {bad[:5]}')
+badu = []
+for i, e in cq.items():
+    for u in e[2]:
+        m = re.fullmatch(r'(\w+)#([rxbcgmd])(\d+)', u)
+        if not m or m[1] not in LB: badu.append(u); continue
+        if m[2] == 'd':
+            if m[3] not in SG['e']: badu.append(u)
+            continue
+        l, k, n = LB[m[1]], m[2], int(m[3])
+        if k in 'rxbcm' and n >= len({'r': l['rules'], 'x': l['ex'], 'b': l['body'], 'c': l['recap'], 'm': l['mnem']}.get(k, [])): badu.append(u)
+ok(not badu, f'coverage units point at existing lesson parts {badu[:5]}')
+ok(set(cq[str(i)][0] for i in ids) <= set('fwn'), 'coverage status in f/w/n (hand verdicts only, no automatic matches)')
+ok(all(len(e) == 3 or (e[0] == 'n' and e[3] in ('S', 'X')) for e in cq.values()), 'only untaught questions carry the no-official-source / bank-vs-law flag')
+# whole-bank record: one verdict per question, every stable reference resolves, reasons present
+sys.path.insert(0, os.path.join(R, "tools", "coverage"))
+from units import load as uload, resolve
+from overlap import overlap
+CF = J('data', 'coverage_full.json')
+ok(set(map(int, CF['q'])) == ids, f"coverage_full.json has a verdict for every one of the {len(ids)} questions")
+ok(all(e['v'] in ('full', 'partial', 'none') and e['why'] for e in CF['q'].values()), 'every verdict has a one-line reason')
+ok(all(e['v'] != 'none' or e['src'] in ('T', 'S', 'X') for e in CF['q'].values()), 'every untaught question is marked teachable (T), no official source (S) or bank-vs-law conflict (X)')
+# v1.13 (review #9 D4): Q13's bank answer contradicts TR 1 – conflict status, not taught, not cited, never in a regular quiz
+_X = sorted(int(k) for k, e in CF['q'].items() if e.get('src') == 'X')
+_LJ = J('data', 'lessons.json')
+# v1.14 (review #10 N6): every bank-vs-law conflict – uncited, only in a bank lesson, with a note quoting the law
+_XOK = [q for q in _X if not CF['q'][str(q)]['rule'] and all(q not in l['quiz'] for l in _LJ['lessons'] if not l.get('bank'))
+        and any(q in l.get('bank', []) for l in _LJ['lessons']) and _LJ['notes'].get(str(q), {}).get('x')]
+ok(_X == [13, 91, 330, 333, 1327, 1793] and _XOK == _X and '1,800' in _LJ['notes']['13']['x'][0][1],
+   f'v1.14: bank-vs-law conflict status {_X}: uncited, only in a bank lesson, each note quotes the law')
+# v1.14 (review #10 N6): a note or rule that says the bank's answer differs from the law marks a conflict (generic scan)
+_BD = re.compile(r'הבנק כותב|בבנק השאלות|תשובת המאגר|התשובה במאגר')
+_bdn = [int(k) for k, n in _LJ['notes'].items() if _BD.search(n.get('law', '')) and CF['q'].get(k, {}).get('src') != 'X'
+        and k not in ('281', '92', '1765')]
+_bdr = [(k, r) for k, e in CF['q'].items() if e['v'] != 'none' for r in e['rule']
+        if r.split('#')[1][0] == 'r' and _BD.search(next(l for l in _LJ['lessons'] if l['id'] == r.split('#')[0])['rules'][int(r.split('#r')[1])]['t'])]
+ok(not _bdn and not _bdr, f'v1.14: a note saying the bank differs is a conflict (X) {_bdn[:5]}; no verdict cites a rule that says the bank differs {_bdr[:5]}')
+# v1.14 (review #10 N5): coverage never rests on uncited lesson-body prose
+ok(not [k for k, e in CF['q'].items() for r in e['rule'] + e['ref'] if '#b' in r], 'v1.14: no verdict cites lesson-body prose (#b units)')
+_RJ9 = {l.split()[0]: l.split()[1] for l in open('tools/coverage/rejudge_v119.txt', encoding='utf-8') if l.strip() and not l.startswith('#')}
+_RJ11 = {l.split()[0] for l in open('tools/coverage/rejudge_v1201.txt', encoding='utf-8') if l.strip() and not l.startswith('#')}  # v1.20.1 supersedes
+_RJ10 = {l.split()[0] for l in open('tools/coverage/rejudge_v120.txt', encoding='utf-8') if l.strip() and not l.startswith('#')} | _RJ11  # a later file supersedes
+ok(len(_RJ9) >= 1 and all(q in _RJ10 or CF['q'][q]['by'] == 'v1.19' and CF['q'][q]['v'] == {'partial': 'partial', 'full': 'full'}.get(v, 'none') for q, v in _RJ9.items()),
+   f'v1.19: every re-judgement of review #15 ({len(_RJ9)}) is applied')
+_RJ8 = {l.split()[0]: l.split()[1] for l in open('tools/coverage/rejudge_v118.txt', encoding='utf-8') if l.strip() and not l.startswith('#') and l.split()[0] not in _RJ9}
+ok(len(_RJ8) >= 13 and all(q in _RJ10 or CF['q'][q]['by'] == 'v1.18' and CF['q'][q]['v'] == {'partial': 'partial', 'full': 'full'}.get(v, 'none') for q, v in _RJ8.items()),
+   f'v1.18: every re-judgement of review #14 ({len(_RJ8)}) is applied')
+_RJ7 = {l.split()[0]: l.split()[1] for l in open('tools/coverage/rejudge_v117.txt', encoding='utf-8') if l.strip() and not l.startswith('#') and l.split()[0] not in _RJ8 and l.split()[0] not in _RJ9}
+ok(all(q in _RJ10 or CF['q'][q]['by'] == 'v1.17' and CF['q'][q]['v'] == {'partial': 'partial', 'full': 'full'}.get(v, 'none') for q, v in _RJ7.items()),
+   f'v1.17: every re-judgement of review #13 not superseded by v1.18 ({len(_RJ7)}) is applied')
+_RJ6 = {l.split()[0]: l.split()[1] for l in open('tools/coverage/rejudge_v116.txt', encoding='utf-8') if l.strip() and not l.startswith('#') and l.split()[0] not in _RJ8 and l.split()[0] not in _RJ9 and l.split()[0] not in _RJ7}
+ok(len(_RJ6) >= 15 and all(q in _RJ10 or CF['q'][q]['by'] == 'v1.16' and CF['q'][q]['v'] == {'partial': 'partial', 'full': 'full'}.get(v, 'none') for q, v in _RJ6.items()),
+   f'v1.16: every re-judgement of review #12 and the strict re-sample ({len(_RJ6)}) is applied')
+_S16 = open('tools/coverage/rejudge_v116_sample.md', encoding='utf-8').read()
+ok(len(set(re.findall(r'^\| *Q?(\d+) *\|', _S16, re.M))) >= 80, 'v1.16: strict re-sample covers at least 80 further B/A full verdicts')
+_RJ5 = {l.split()[0]: l.split()[1] for l in open('tools/coverage/rejudge_v115.txt', encoding='utf-8') if l.strip() and not l.startswith('#') and l.split()[0] not in _RJ6 and l.split()[0] not in _RJ7 and l.split()[0] not in _RJ8 and l.split()[0] not in _RJ9}
+_RJ4 = {l.split()[0]: l.split()[1] for l in open('tools/coverage/rejudge_v114.txt', encoding='utf-8') if l.strip() and not l.startswith('#') and l.split()[0] not in _RJ5 and l.split()[0] not in _RJ6 and l.split()[0] not in _RJ7 and l.split()[0] not in _RJ8 and l.split()[0] not in _RJ9}
+ok(len(_RJ5) >= 15 and all(CF['q'][q]['by'] == 'v1.15' and CF['q'][q]['v'] == {'partial': 'partial', 'full': 'full'}.get(v, 'none') for q, v in _RJ5.items()),
+   f'v1.15: every re-judgement of review #11 and the strict re-sample ({len(_RJ5)}) is applied')
+_RJ = {l.split()[0]: l.split()[1] for l in open('tools/coverage/rejudge_v113.txt', encoding='utf-8') if l.strip() and not l.startswith('#') and l.split()[0] not in _RJ4 and l.split()[0] not in _RJ5 and l.split()[0] not in _RJ6 and l.split()[0] not in _RJ7 and l.split()[0] not in _RJ8 and l.split()[0] not in _RJ9}
+ok(all(CF['q'][q]['by'] == 'v1.14' and CF['q'][q]['v'] == {'partial': 'partial', 'full': 'full'}.get(v, 'none')
+       and (v != 'conflict' or CF['q'][q].get('src') == 'X') for q, v in _RJ4.items()), f'v1.14: every re-judgement of review #10 ({len(_RJ4)}) is applied')
+ok(all(CF['q'][q]['by'] == 'v1.13' and (v in ('why',) or CF['q'][q]['v'] == {'partial': 'partial', 'full': 'full'}.get(v, 'none')) for q, v in _RJ.items()),
+   f'v1.13: every strict re-judgement ({len(_RJ)}) is applied')
+ok(not any(e['by'] == 'v1.5' and e.get('why', '').startswith('rule written for this question') for e in CF['q'].values()), 'v1.13: spec links are not labelled v1.5')
+_Q, _LS, _S, _U, _D = uload()
+bad = []
+for i, e in CF['q'].items():
+    for r in e['ref']:
+        try: resolve(_LS, r)
+        except ValueError as x: bad.append((i, str(x)))
+ok(not bad, f'every stored unit reference resolves to exactly one unit {bad[:3]}')
+# keyword overlap: the cited unit must share a content word with the question or its answer (stale-pointer guard);
+# the allowlist holds checked pairs whose overlap is a synonym only
+OVL_OK = {('446', 'signs3'): 'the question is the picture of sign 128 itself (v1.17: the uncited "slow down" sentence was removed)', ('1792', 'maint2'): 'ינהג / לנסוע – the answer "none is right" negates each option (v1.17: the uncited "גם ביום בקיץ" was removed)', ('981', 'overtake'): 'ימין / ימני', ('172', 'roadparts'): 'דרך – the defined term itself (a stopword for the matcher)', ('1064', 'defensive'): 'הסחת / היסח דעת', ('910', 'peds2'): 'ילדים / ליד בתי ספר (partial; the textbook excerpt sample shifted in v1.10)'}
+ut = {u['id']: u['text'] for u in _U}; bad = []
+for i, e in cq.items():
+    if e[0] == 'n': continue
+    for u in e[2]:
+        if u in ut and not overlap(byid[int(i)], ut[u]) and (i, u.split('#')[0]) not in OVL_OK: bad.append((i, u))
+ok(not bad, f'cited units share a keyword with their question {bad[:5]}')
+
+# 2. lessons: quizzes, sources
+for l in L:
+    qz = l['quiz']
+    ok(all(q in ids for q in qz), f'{l["id"]}: quiz ids exist')
+    elig = [q for q in qz if any(c in byid[q]['t'] for c in l['cls'])]
+    ok(len(elig) == len(qz), f'{l["id"]}: quiz questions belong to the lesson classes')
+    for c in l['cls']:
+        n = sum(c in byid[q]['t'] for q in qz)
+        ok(n >= l.get('quiz_min', 6) if 'quiz_min' in l else n >= 1, f'{l["id"]}/{c}: {n} quiz questions')
+    srcs = [r['s'] for r in l['rules']] + [a for r in l['rules'] for a in r.get('also', [])] + [x['s'] for x in l['ex']] + [m['s'] for m in l['mnem']] + [c['s'] for c in l['recap']]
+    miss = [s for s in srcs if s not in SRC and re.sub(r'\(.*$', '', s) not in SRC]
+    ok(not miss, f'{l["id"]}: every rule/example/recap cites a known source {miss[:3]}')
+kinds = {v['kind'] for v in SRC.values()}
+ok(kinds <= {'TR', 'TO', 'LT', 'LTP', 'Q', 'OFF'}, f'sources only from law (TR/TO), sign table (LT/LTP), the bank (Q) and official RSA/MoT pages (OFF): {sorted(kinds)}')
+KIDS_CO = 'https://kids.gov.il/sababa/sababa_pool/pages/4451'  # Ministry of Environmental Protection CO page, approved by Dudi 2026-10-26 (this one page only)
+PITZ = J('tools', 'official/pages.json')['pitzuim']['url']  # v1.12: Compensation Law s.1, Wikisource permanent revision 2968550 (approved by Dudi)
+ok(PITZ.startswith('https://he.wikisource.org/w/index.php?') and PITZ.endswith('&oldid=2968550'), 'v1.12: Compensation Law pinned to Wikisource oldid 2968550')
+offd = lambda u: re.match(r'https://(www\.)?(gov\.il|mot\.gov\.il|rsa\.org\.il|meyda\.education\.gov\.il)/', u) or u in (KIDS_CO, PITZ)  # meyda = Ministry of Education curriculum (official state textbook)
+ok(all(offd(v['url']) and v.get('sha256') and v.get('accessed') and v['ex'] for v in SRC.values() if v['kind'] == 'OFF'),
+   'official sources are gov.il / mot.gov.il / rsa.org.il / Ministry of Education curriculum pages (+ the approved MoEP CO page), pinned (access date + sha256) and quoted')
+ok(all(('wikisource.org' in v['url'] and 'oldid=' in v['url']) for v in SRC.values() if v['kind'] in ('TR', 'TO')), 'law sources are pinned Wikisource revisions')
+ok(all('gov.il' in v['url'] for v in SRC.values() if v['kind'] in ('LT', 'LTP')), 'sign sources are the gov.il sign table')
+
+# 3. sign table
+ok(len(SG['e']) == 276, f'signs.json: 276 entries ({len(SG["e"])})')
+ok([p[0] for p in SG['parts']] == list(range(1, 10)), 'signs.json: parts 1–9')
+ok(all(n in SG['e'] for v in SG['q'].values() for n in v), 'sign questions point at table entries')
+ok(all(int(i) in ids for i in SG['q']), 'sign question ids exist')
+viz = T('js', 'viz.js'); parts = [int(x) for x in re.findall(r"'חלק (\d) – ", viz)]
+ok(parts == list(range(1, 10)), f'signs explorer knows all 9 parts {parts}')
+for n in SG['e']:
+    p = int(n) // 100
+    if not re.search(rf"\[{p}01, (\d+), 'חלק {p} ", viz): ok(False, f'explorer range for {n}'); break
+    hi = int(re.search(rf"\[{p}01, (\d+), 'חלק {p} ", viz)[1])
+    if int(n) > hi: ok(False, f'sign {n} outside explorer range part {p} (to {hi})'); break
+else: ok(True, 'every table entry falls inside an explorer range')
+
+# 4. eligibility citations exist in TR. Needs tools/law/law.json: built here from the pinned wikitext (parse.py) when
+#    only that is missing; if the wikitext is missing too the check FAILS (run tools/law/fetch.py, then parse.py) – never skipped.
+LD = os.path.join(R, 'tools', 'law')
+lawp = os.path.join(LD, 'law.json')
+cites = set(re.findall(r"'(\d+[א-ת]?(?:\([^)]+\))*)'", ' '.join(re.findall(r"\[(?:'\d[^\]]*)\]", T('js', 'elig.js')))))
+if not os.path.exists(lawp) and all(os.path.exists(os.path.join(LD, f)) for f in ('תקנות_התעבורה.txt', 'פקודת_התעבורה.txt')):
+    import subprocess
+    subprocess.run([sys.executable, 'parse.py'], cwd=LD, check=True, stdout=subprocess.DEVNULL)
+    print('  built tools/law/law.json from the pinned wikitext')
+ok(os.path.exists(lawp), 'tools/law/law.json present (pinned law; run tools/law/fetch.py then parse.py)')
+if os.path.exists(lawp):
+    TR = json.load(open(lawp, encoding='utf-8'))['TR']
+    miss = [c for c in sorted(cites) if re.match(r'\d+[א-ת]?', c)[0] not in TR]
+    ok(cites and not miss, f'eligibility cites {len(cites)} existing TR sections {miss}')
+else: ok(False, 'eligibility section check could not run (no law.json)')
+
+# 5. review-2 content fixes
+rs = lambda lid: [r['s'] for r in LB[lid]['rules']]
+ok('TR:97(ג)' in rs('bus') and 'TR:97(ג)' in rs('lights'), 'headlights season rule 97(ג) in lights + bus')
+ok(rs('newdrv')[0] == 'TO:12א(א)' and all(c in LB['newdrv']['cls'] for c in ('B', 'A', '1')), 'new driver: TO 12א(א), on the A and tractor paths')
+ok('TR:189(ט)' in rs('bus'), 'bus: 189(ט) minibus exception')
+ok(any(x['q'] == 180 and 'קודקוד למעלה' in x['t'] for l in L for x in l['ex']), 'Q180 example: 125 is an upright triangle')
+ok(all(i in LB for i in ('sober', 'accident', 'duty', 'signal', 'terms', 'cargo')), 'safety/duty lessons present (alcohol, accident, duties, signalling, terms, cargo)')
+exs = {(x['q'], x['s']) for l in L for x in l['ex']}
+ok((207, 'TR:72(א)(7)') in exs and (88, 'TR:48(ג)') in exs, 'citations: Q207→72(א)(7), Q88→48(ג)')
+ok('TR:47(ו)' in rs('overtake') and {'TR:117(ב)', 'TR:117(ג)'} <= set(rs('rail')), 'overtake 47(ו) exception; rail 117(ב)+(ג)')
+ok("A1" in T('js', 'elig.js') and '221(א)(1)' in T('js', 'elig.js'), 'A1 line in elig.js')
+
+# 5b. v1.3: official sources, notes, diagrams, sign texts
+LJ = J('data', 'lessons.json'); NT = LJ.get('notes', {})
+ok(all(k in NT for k in ('1192', '40', '592')), 'bank-vs-law notes for Q1192, Q40, Q592')
+ok(all(NT[k]['exam'] == next(q['a'][q['c']] for q in Q if q['id'] == int(k)) for k in NT), 'notes quote the bank answer unchanged')
+vz = set(re.search(r'export const VIZ = \{([^}]*)\}', viz)[1].replace(' ', '').split(','))
+ok(all(v in vz for l in L for v in l['viz']), f'every lesson diagram exists in js/viz.js')
+ok(sum(1 for l in L if not l['viz']) <= 2, f"lessons without a diagram: {[l['id'] for l in L if not l['viz']]}")
+ok(all(i in LB for i in ('vehicle', 'defensive', 'moto2', 'heavy2')), 'v1.3 lessons: vehicle, defensive, moto2, heavy2')
+ok(set(LB['moto2']['cls']) == {'A'} and set(LB['heavy2']['cls']) == {'C1', 'C'}, 'moto2 is A-only, heavy2 C1/C')
+ok(all(v['kind'] != 'OFF' or ('sha256' in v and v.get('accessed')) for v in SRC.values()), 'official pages pinned with sha256 + access date')
+bad = [k for k, t in SG['e'].items() if re.search(r'(?<!\S)[\u05d0-\u05ea](?!\S)', t) or re.search(r'\)[^()]*\(', t)]
+ok(len(bad) <= 3, f'sign texts without split letters / mirrored brackets (left: {bad})')
+ok('ללא ניקוד' in T('js', 'i18n.js') and "t('ln.noNiqqud')" in T('js', 'learn.js'), 'gov.il excerpts marked "ללא ניקוד" (chip + About)')
+ok(all(x in viz for x in ('שלוחה אחורית', "'רוחב וגובה'", '313(א)(3)(ב1)')), 'v1.4: heavy2 size diagram has length / width-height / rear-overhang views')
+ok(SG['e']['701'].startswith('אור אדום – ') and SG['e']['623'] == 'כביש ללא מוצא · כוחו יפה: בכביש שלפניך', 'sign title and meaning separated by " – ", the last column by " · " (701, 623)')
+ok(sum(' – ' in t or ' · ' in t for t in SG['e'].values()) >= 250, 'most sign entries show "title – meaning" or "title · column"')
+RS = lambda i: [r['s'] for r in LB[i]['rules']] + [x for r in LB[i]['rules'] for x in r.get('also', [])]
+ok({'TR:324', 'TR:83(ד)', 'TR:483א'} <= set(map(str, RS('bus'))) or all(any(k in str(x) for x in RS('bus')) for k in ('TR:324', 'TR:83', 'TR:483')), 'v1.4: bus lesson teaches brake terms (324), child doors (83), bins (483א)')
+ok(any('TR:188' in str(x) for x in RS('tractor')), 'v1.4: tractor lesson teaches the age-16 rule (TR:188)')
+ok(len(LB['taxi']['mnem']) >= 2 and len(LB['taxi']['ex']) >= 3, 'v1.4: taxi lesson has a memory aid and bank examples')
+ok(all(l['ex'] for l in L if set(l['cls']) & {'B', 'A'}), 'v1.9: every B/A lesson has a worked bank example')
+ok(any('313' in str(x) and 'אחורית' in r['t'] for r in LB['heavy2']['rules'] for x in [r['s']] + r.get('also', [])) or any('313(ב)' in str(r['s']) for r in LB['heavy2']['rules']), 'v1.4: heavy2 teaches the 313(ב) rear overhang')
+ok('gov_terms_of_use' in T('js', 'app.js') and 'gov_terms_of_use' in T('LICENSE-DATA.md') and 'שימוש הוגן' in T('LICENSE-DATA.md'), 'gov.il reuse terms in About + LICENSE-DATA.md')
+ok(SG['q'].get('592') == ['504'], 'Q592 → sign 504 (white + yellow arrow)')
+
+# 5b. v1.6: B / A coverage – every pool question is taught or listed in docs/NO_SOURCE_B_A.md with its search
+NS = J('tools', 'coverage', 'nosource_ba.json')
+ba = {str(q['id']) for q in Q if {'A', 'B'} & set(q['t'])}
+NI = J('docs', 'coverage_after.json')['none_ids']
+unt = {str(i) for c in ('B', 'A') for i in NI[c]}  # untaught for the class itself (lessons shown to B / A)
+ok(set(NS['q']) == unt, f'v1.6: NO_SOURCE_B_A list = untaught B/A questions (missing {sorted(unt - set(NS["q"]), key=int)[:8]}, extra {sorted(set(NS["q"]) - unt, key=int)[:8]})')
+ok(all(e['g'] in NS['groups'] and NS['groups'][e['g']]['search'] and NS['groups'][e['g']]['why'] for e in NS['q'].values()), 'v1.6: every NO_SOURCE entry has a search done and a reason')
+nsmd = T('docs', 'NO_SOURCE_B_A.md'); lm = T('docs', 'LESSON_MAP_B_A.md')
+ok(all(f'| {i} |' in nsmd for i in NS['q']), 'v1.6: docs/NO_SOURCE_B_A.md lists every NO_SOURCE id')
+ok(all(f'| {i} |' in lm for i in ba), f'v1.6: docs/LESSON_MAP_B_A.md maps every B/A question ({len(ba)})')
+for c, lim in (('B', 92.5), ('A', 92.5)):
+    pool = [str(q['id']) for q in Q if c in q['t']]
+    anyp = 100 * (len(pool) - len(NI[c])) / len(pool)
+    ok(anyp >= lim, f'v1.6: class {c} any-coverage {anyp:.1f}% >= {lim}%')
+
+# 6. SW + version
+sw = T('sw.js'); v = re.search(r"'(\d+\.\d+\.\d+)'", T('js', 'version.js'))[1]
+ok(f"const VERSION = '{v}'" in sw, f'sw.js VERSION = js/version.js ({v})')
+ok(all(f'data/{f}.json' in sw for f in ('q.he', 'lessons', 'sources', 'coverage', 'signs')), 'SW precaches the data files the app needs offline')
+
+# v1.8.0: the site never claims "1,200 questions" (the bank has 1,801); it says it is unofficial and that no course is required
+UI = T('js', 'i18n.js') + T('js', 'app.js') + T('index.html') + ''.join(T('docs', f) for f in os.listdir(os.path.join(R, 'docs')) if f.endswith('.md'))
+ok(not re.search(r'1[,.]?200\s*(שאלות|questions)', UI), 'no "1,200 questions" claim in UI or docs')
+I18 = T('js', 'i18n.js')
+ok(I18.count("'ab.course'") == 2 and 'אתר לא רשמי' in I18 and 'Unofficial site' in I18 and '203(א)' in I18, 'unofficial-site / no-course note in he and en')
+LD = T('LICENSE-DATA.md')
+ok(all(k in LD for k in ('OFF:textbook', 'OFF:edu18', 'OFF:kids_co', 'has not been requested', 'stays CC BY-SA', 'version caveat')), 'LICENSE-DATA lists textbook/edu18/kids, permission status, CC BY-SA and CC BY version notes')
+ok(I18.count("'ab.perm'") == 2 and I18.count("'ab.tbook'") == 2 and I18.count("'ab.kidsTerms'") == 2, 'About lists textbook/edu18/kids sources and the permission notice in he and en')
+
+# 5c. v1.10: bank-only lessons ("מהמאגר הרשמי") – every question with no official source is shown in one, before its quiz
+BK = [l for l in LALL if 'bank' in l]
+QB = {q['id']: q for q in Q}
+NOSRC = {int(k) for k, e in CF['q'].items() if e['v'] == 'none' and e.get('src') in ('S', 'X')}
+inbank = {i for l in BK for i in l['bank']}
+ok(NOSRC == inbank, f'v1.10: every no-source question is in a bank lesson, and only those ({len(NOSRC)} vs {len(inbank)})')
+ok(all(set(l['quiz']) == set(l['bank']) for l in BK), 'v1.10: a bank lesson quizzes exactly the questions it shows')
+ok(all(c in l['cls'] for l in BK for i in l['bank'] for c in QB[i]['t']), 'v1.10: each bank question is shown to every class it belongs to')
+ok(all(not any(l[k] for k in ('body', 'rules', 'ex', 'recap', 'mnem', 'gal', 'viz')) for l in BK), 'v1.10: bank lessons carry no explanation, rule or example of ours')
+ok(all(l['title'].startswith('מהמאגר הרשמי: ') for l in BK), 'v1.10: bank lessons are titled "מהמאגר הרשמי"')
+ok({int(k) for k in NS['q']} <= inbank, 'v1.10: every NO_SOURCE_B_A question is in a bank lesson')
+for c in ('B', 'A', 'C1', 'C', 'D', '1'):
+    path = [l['id'] for l in LALL if c in l['cls']]; nb = [i for i, x in enumerate(path) if x.startswith('bank_')]
+    ok(not nb or nb[0] == len(path) - len(nb), f'v1.10: class {c} bank lessons come after all taught lessons')
+    ok(J('docs', 'coverage_after.json')['class'][c]['bank_only'] == sum(1 for i in inbank if c in QB[i]['t']) ==
+       J('docs', 'coverage_after.json')['class'][c]['none_nosource'] + J('docs', 'coverage_after.json')['class'][c]['conflict'],
+       f'v1.10: class {c} bank-only figure = its no-source (+ v1.13 bank-vs-law conflict) questions')
+NT = J('data', 'lessons.json')['notes']
+ok(all(int(k) in inbank for k, v in NT.items() if v.get('k') == 'tb'), 'v1.10: textbook-differs notes only on bank questions')
+ok(NT.get('1765', {}).get('k') == 'tb' and NT['1765']['s'] == 'OFF:textbook', 'v1.10: Q1765 states the textbook difference with its source')
+JL = T('js', 'learn.js')
+ok("'ln.bankNote'" in JL and 'BANK_URL' in JL and I18.count("'ln.bankNote'") == 2 and I18.count("'ln.bankAttr'") == 2, 'v1.10: bank lessons show the no-explanation label and CC BY attribution (he and en)')
+
+# 5d. v1.10 (review #7 item 2): bank-sourced rules re-based on law/textbook where the official text states the answer;
+# the remaining ones are disclosed through a "without bank-sourced rules" figure
+LB = {l['id']: l for l in LALL}
+RB = [('distance', 2), ('distance', 4), ('distance', 5), ('blind', 0), ('blind', 1), ('heavy', 4), ('bus', 5), ('bus', 6), ('tractor', 2), ('tractor', 3), ('tractor', 8)]
+ok(all(not LB[l]['rules'][i]['s'].startswith('Q:') for l, i in RB), 'v1.10: re-based rules cite law/textbook, not only a bank question')
+CFQ = J('data', 'coverage_full.json')['q']
+ok(CFQ['1305']['rule'] and set(CFQ['1305']['rule']) <= {'heavy2#r2', 'cargo2#r0'} and CFQ['1520']['rule'] == ['equip#r2'], 'v1.10: Q1305 -> TR 313(א)(3) length rule, Q1520 -> TR 368 chocks rule')
+CA = J('docs', 'coverage_after.json'); CJ = J('data', 'coverage.json')['tot']
+TBC = J('data', 'coverage.json')['tb']; LDT = T('LICENSE-DATA.md')
+ok(f"{TBC[0]} of the {TBC[1]} lesson rules cite it; {TBC[2]} excerpts from {TBC[3]} of its 170 pages" in LDT and f"about {TBC[4]} %" in LDT,
+   f'v1.10: LICENSE-DATA textbook counts match the build ({TBC})')
+ok("'ab.tbookText', ...(COV?.tb" in T('js', 'app.js') and I18.count('{0}') >= 2 and 'רוב הכללים' not in I18, 'v1.10: About textbook counts are computed, not "most rules"')
+ok('GitHub Pages' in I18 and I18.count('IP') >= 2 and "'ln.why'" in I18 and 'במבחן אין הסברים' in I18, 'v1.10: About privacy names GitHub Pages logging; law text says practice shows "Why?"')
+ok(all(len(v) == 12 and v[6] <= v[1] and v[8] <= v[7] and v[10] <= v[9] for v in CJ.values()), 'v1.10/1.11: app coverage table carries the without-bank-sourced figure (<= full) and partial / shown with bank answer')
+ok(all(CA['class'][c]['full_nobank_pct'] <= CA['class'][c]['full_pct'] and CA['class'][c]['full_bank_sourced'] >= 0 for c in CA['class']), 'v1.10: per-class without-bank-sourced figure recorded')
+CM = T('docs', 'COVERAGE.md')
+ok(f"{CA['all']['full_nobank_pct']}%" in CM and 'bank-sourced' in CM, 'v1.10: COVERAGE.md reports the without-bank-sourced figure next to the headline')
+
+# 5e. v1.11: B/A questions taught only partly are shown in their topic lesson with the official bank answer, before its quiz
+import importlib.util as _iu
+_sp = _iu.spec_from_file_location('partial_bank', os.path.join(R, 'tools', 'partial_bank.py')); PBM = _iu.module_from_spec(_sp); _sp.loader.exec_module(PBM)
+PART = {int(k): e for k, e in CF['q'].items() if e['v'] == 'partial' and set(e['cls']) & {'B', 'A'}}
+PBL = [(l, p) for l in LALL for p in l.get('pbank', [])]
+miss = [(q, c) for q, e in PART.items() for c in set(e['cls']) & {'B', 'A'}
+        if not any(p['q'] == q and c in l['cls'] and q in l['quiz'] for l, p in PBL)]
+ok(not miss, f'v1.11: every B/A partial question is shown in a lesson of its class and is in that lesson\'s quiz ({len(PART)} questions; missing {miss[:5]})')
+ok(all(CA['class'][c]['partial_shown'] == CA['class'][c]['partial'] for c in ('B', 'A')), 'v1.11: B and A: every per-class partial question is shown with the bank answer')
+ok(all(CF['q'][str(p['q'])]['v'] == 'partial' for l, p in PBL), 'v1.11: shown-with-bank-answer questions all stay partial (never counted full)')
+ok(len({p['q'] for l, p in PBL}) == len(PBL), 'v1.11: each partial question is shown once')
+bad = []
+for l, p in PBL:
+    exp = [PBM.unit(u, LB, SG) for u in CF['q'][str(p['q'])]['rule']]
+    for u in exp: u['o'] = PBM.official(u)
+    if exp != p['u']: bad.append(p['q'])
+ok(not bad, f'v1.11: partial cards carry only the existing lesson units the verdict cites, with their sources (no new text) {bad[:5]}')
+ok(all(not u['o'] or u['k'] == 'sign' or any(x and not x.startswith('Q:') for x in [u['s']] + u.get('also', [])) for l, p in PBL for u in p['u']),
+   'v1.11: a unit is labelled "official source" only when it cites a non-bank official source')
+ok("'ln.pbRest'" in JL and "'ln.pbNoOff'" in JL and I18.count("'ln.pbRest'") == 2 and I18.count("'ln.pbankNote'") == 2 and I18.count("'ab.covPart'") == 2, 'v1.11: partial cards label official-source part and bank-only rest apart (he + en), About column')
+ok('shown with the official bank answer' in CM and f"B {CA['class']['B']['partial_shown']} of {CA['class']['B']['partial']}" in CM, 'v1.11: COVERAGE.md reports partial + shown with official bank answer')
+
+ok(JL.count('opts(v)') >= 3 and "'ln.okb'" in I18 and I18.count("'ln.okb'") == 2, 'v1.11 (review #8): bank cards, partial cards and worked examples show all official options with the correct one marked')
+ok(CFQ['978']['v'] == 'full' and 'signs#d702' in CFQ['978']['rule'] and CFQ['985']['v'] == 'partial' and CFQ['1464']['v'] == 'partial'
+   and not {'978', '985', '1464'} & set(NS['q']), 'v1.11 (review #8): Q978 taught (sign 702 + light sequence), Q985 and Q1464 partial, none listed as no-source')
+ok(CFQ['1506']['rule'] == ['heavy2#r24'] and CFQ['1322']['rule'] == ['heavy2#r22'] and CFQ['1393']['rule'] == ['heavy2#r17'], 'v1.11 (review #8): C/C1 citations 1506, 1322, 1393 point at the unit that teaches the answer')
+ok('ובאופנוע (A) הכיסוי חלקי' not in I18 and I18.count('{0}.') >= 2 and 'אף רישיון אינו מכוסה במלואו' in I18 and "t('ab.covText', [" in T('js', 'app.js'), 'v1.11 (review #8): About says every class is partial and gives computed per-class full figures')
+ok(not [x['q'] for l in LJ['lessons'] for x in l['ex'] if x['s'].startswith('Q:') or any(a.startswith('Q:') for a in x.get('also', []))], 'v1.11 (review #8): no worked example is sourced from a bank question (signs#x0 re-based on sign table 135/306)')
+_LB = {l['id']: l for l in LJ['lessons']}
+ok(any('אור מהבהב צהוב' in r['t'] and 'מחווני הכיוון' in r['t'] for r in _LB['bus']['rules']) and not any('אורות מצוקה' in r['t'] for r in _LB['bus']['rules']) and 'אורות מצוקה' not in _LB['bus']['ex'][0]['t'], 'v1.11 (review #8): bus TR 70 rule restates 70(ב)(1) (amber flasher or all indicators), not "hazard lights"')
+ok(any('בבלם ובמצמד' in r['t'] for r in _LB['blind']['rules']), 'v1.11 (review #8): blind stopping-steps rule follows the textbook wording (brake and clutch)')
+_CSS = T('css', 'style.css'); _APP = T('js', 'app.js')
+ok('.tbl.cov td::before { content: attr(data-label)' in _CSS and "'data-label': t(COVH[k + 1]) }, h('bdi'" in _APP and 'pc(nb)' in _APP, 'v1.11 (review #8): About coverage table stacks as labelled cards at phone widths; percentages one decimal')
+_np = lambda x: re.sub(r'[\s.,:;\-–״"\'()]+', '', x)
+_EXBA = [(l['id'], x) for l in LJ['lessons'] if 'B' in l['cls'] or 'A' in l['cls'] for x in l['ex']]
+_badtr = [x['q'] for _, x in _EXBA if 'tr' in x and not (0 <= x['tr'] < len(byid[x['q']]['a']) and x['tr'] != byid[x['q']]['c'])]
+ok(not _badtr and sum('tr' in x for _, x in _EXBA) >= len(_EXBA) - 2, f'v1.11 (review #8): B/A worked examples name the closest wrong option (index != correct): {sum("tr" in x for _, x in _EXBA)}/{len(_EXBA)} {_badtr[:5]}')
+_badqt = [(x['q'], p['s']) for _, x in _EXBA for p in x.get('qt', []) if not any(_np(p['t'].rstrip('…')) in _np(e) for e in SRC.get(p['s'], {}).get('ex', []))]
+ok(not _badqt and sum(bool(x.get('qt')) for _, x in _EXBA) == len(_EXBA) and "'ln.trapNote'" in I18 and 'x.qt.map' in JL, f'v1.11+v1.13 (reviews #8, #9 D3): every worked example (0 uncited) quotes its own official passage verbatim (from the pinned source excerpts): {sum(bool(x.get("qt")) for _, x in _EXBA)}/{len(_EXBA)} {_badqt[:5]}')
+# v1.12: MoE topics 7/13/17/21 + Compensation Law s.1 (approved by Dudi 2026-10-26)
+_PG = J('tools', 'official/pages.json'); _NS = J('tools', 'coverage/nosource_ba.json')['q']
+_SH = {'edu07': '0297ccb25afb', 'edu13': '85cce4eea0bf', 'edu17': 'd04c0c507fd3', 'edu21': '43d231c129ee'}
+ok(all(_PG[k]['pdf_sha256'].startswith(v) and _PG[k]['url'].startswith('https://meyda.education.gov.il/') and _PG[k]['quotes'] and all(q.get('p') for q in _PG[k]['quotes']) for k, v in _SH.items())
+   and _PG['pitzuim']['src_sha256'].startswith('8fdd952b') and _PG['pitzuim']['revid'] == 2968550, 'v1.12: new sources pinned with PDF / API sha256 and page numbers')
+_V12F, _V12P = (1661, 1653, 302, 1006, 1723), (1596, 1599, 1655, 1657, 1615, 1616)
+ok(all(CFQ[str(i)]['v'] == 'full' and any(r.startswith(('moto3#', 'alc2#', 'winter2#', 'accident#')) for r in CFQ[str(i)]['rule']) for i in _V12F)
+   and all(CFQ[str(i)]['v'] == 'partial' and CFQ[str(i)]['rule'] for i in _V12P), 'v1.12: 5 questions full and 6 partial from the new sources')
+ok(not any(str(i) in _NS for i in _V12F + _V12P), 'v1.12: newly sourced questions removed from NO_SOURCE_B_A')
+ok(all('may be outdated' in _NS[i]['note'] for i in ('281', '92')) and _NS['281']['g'] == 'law', 'v1.12: Q281 / Q92 kept as no-source with an outdated-answer note (not cited)')
+ok(not any(f"'Q:{i}'" in T('tools', 'lessons_v112.py') for i in (281, 92)) and 'return 404\')' not in T('tools', 'coverage/nosource_build.py'), 'v1.12: Q281/Q92 not cited; stale 404 note fixed')
+_AR = [r for L in LALL if L['id'] == 'accident' for r in L['rules'] if 'OFF:pitzuim' in r.get('also', [])]
+ok(len(_AR) == 1 and _AR[0]['s'] == 'OFF:edu21', 'v1.12: Q1723 rule combines MoE topic 21 with Compensation Law s.1')
+_N12 = J('data', 'lessons.json')['notes']
+ok(_N12.get('281', {}).get('s') == 'TR:47' and _N12.get('92', {}).get('s') == 'TR:172א' and all('אינה מעודכנת' in _N12[i]['law'] for i in ('281', '92')), 'v1.12: Q281 / Q92 carry the in-app "bank answer may be outdated" note (deleted / cancelled provision)')
+
+# 5f. v1.13 (review #9 D1): every cited item pins its OWN passage, shown first in its chip; the passage is in the pinned
+# source and carries the item's own checks (no more "first excerpts of the section")
+sys.path.insert(0, os.path.join(R, 'tools'))
+from lessons_spec import LESSONS as _LS, EXAMPLES as _EXS
+from cite_v113 import CHK as _CITE
+_LAW = J('tools', 'law/law.json')
+_nm = lambda x: re.sub(r'\s+', ' ', re.sub(r'[״׳"\'`“”„‘’\-–—־.,;:!?()\[\]/…+•]', ' ', re.sub(r'[\u0591-\u05C7]', '', x))).strip()
+_pg = lambda e: re.sub(r'\s*\(עמ׳ \d+\)$', '', e)
+_sid = lambda s: re.match(r'^(TR|TO|LT|LTP|Q|OFF):([^()]+)', s).group(0)
+_LJI = {l['id']: l for l in LJ['lessons']}
+_bad1, _n1 = [], 0
+for _L in _LS:
+    _J = _LJI.get(_L['id'])
+    if not _J: continue
+    _items = [('rule', r, _j, r.get('chk', [])) for r, _j in zip(_L['rules'], _J['rules'])]
+    _items += [('mnem', m, _j, list(m[3]) if len(m) > 3 else _CITE.get(f"{_L['id']}.mnem{i}", [])) for i, (m, _j) in enumerate(zip(_L.get('mnem', []), _J['mnem']))]
+    _items += [('recap', c, _j, c.get('chk') or _CITE.get(f"{_L['id']}.recap{i}", [])) for i, (c, _j) in enumerate(zip(_L['recap'], _J['recap']))]
+    _items += [('ex', x, _j, x.get('chk', [])) for x, _j in zip(_EXS.get(_L['id'], []), _J['ex'])]
+    for _k, _sp_, _j, _ch in _items:
+        _s = _j['s']
+        if _s.startswith('Q:'): continue
+        _n1 += 1; _x = _j.get('x') or []; _sd = _sid(_s); _w = f"{_L['id']}.{_k}:{_s}"
+        if not _x or _x[0][0] != _sd: _bad1.append(_w + ' no own excerpt first'); continue
+        for _xs, _xe in _x:
+            if not any(_nm(_pg(_xe))[:200] in _nm(e) for e in SRC.get(_xs, {}).get('ex', [])): _bad1.append(_w + ' excerpt not pinned')
+            _kd, _ky = _xs.split(':', 1)
+            if _kd in ('TR', 'TO') and any(_nm(_pt) not in _nm(_LAW[_kd][_ky]['text']) for _pt in _pg(_xe).split(' … ')): _bad1.append(_w + ' excerpt not in law text')
+        _own = ' '.join(_nm(e) for xs, e in _x if xs == _sd)
+        if _sd.split(':')[0] in ('TR', 'TO') and not _ch: _bad1.append(_w + ' no checks')
+        _bad1 += [_w + f' check "{c}" not in its own excerpt' for c in _ch if _sd.split(':')[0] in ('TR', 'TO', 'OFF') and _nm(c) not in _own and not (_sd.startswith('OFF:') and _nm(c).replace(' ', '') in _own.replace(' ', ''))]   # v1.19 D8: shown OFF passages get the PDF's missing spaces back
+ok(not _bad1 and _n1 > 600, f'v1.13 (review #9 D1): every rule / mnemonic / recap / example pins its own passage, present in the pinned source and containing its own checks ({_n1} items; {_bad1[:4]})')
+ok('mine.length ? mine' in JL and 'slice(0, 4)' not in JL and "'#page=' + pg[1]" in JL, 'v1.13 (review #9 D1): the chip shows the item\'s own passage first')
+
+# v1.13 (review #9 D2): no-source questions are never regular lesson-quiz items; each is in a 'מהמאגר הרשמי' bank-only lesson
+_NSQ = {int(k) for k, e in CF['q'].items() if e['v'] == 'none' and e.get('src') in ('S', 'X')}
+_inq = sorted({(l['id'], q) for l in LJ['lessons'] if not l.get('bank') for q in l['quiz'] if q in _NSQ})
+_nob = sorted(q for q in _NSQ if not any(q in l.get('bank', []) for l in LJ['lessons']))
+ok(not _inq and not _nob and {92, 909, 914, 923, 1160, 1076, 1699, 1765, 1454, 1455, 1456, 1472} <= _NSQ, f'v1.13 (review #9 D2): {len(_NSQ)} no-source questions: none in a regular lesson quiz {_inq[:5]}, all in a bank-only lesson {_nob[:5]}')
+# v1.13 (review #9): rules whose only source is a bank question (circular) are labelled "תשובת המאגר" in their chip
+_QR = sorted((l['id'], i, r['s']) for l in LALL for i, r in enumerate(l['rules']) if r['s'].startswith('Q:'))
+_QU = [f"{l['id']}#{k}{i}" for l in LALL for k, key in (('r', 'rules'), ('c', 'recap'), ('m', 'mnem')) for i, u in enumerate(l.get(key, []))
+       if all(x.startswith('Q:') for x in [u['s']] + u.get('also', []))]
+_QB = [q for q, e in cq.items() if e[0] != 'n' and any(u in _QU for u in e[2])]
+ok(not _QR and not _QU and not _QB and all(cq[str(q)][0] == 'n' for q in (606, 477, 1086, 1097, 1474, 1603, 1604, 1605, 1611, 1669, 1726))
+   and not any('גם הצורה עוזרת' in b or 'משולש שהקודקוד' in b for b in LB['signs']['body']),
+   f'v1.19 (review #15 D3): no regular lesson teaches a rule/recap/mnemonic sourced only to the bank answer ({len(_QR)} rules, {_QU[:4]}); no verdict rests on one {_QB[:4]}; '
+   'Q477 and the bank-sourced fulls are bank-only (none-S) like Q606; the uncited shape claim is gone from the signs lesson body')
+ok( "cited && x.kind === 'Q' ? t('ln.bankAns')" in JL
+   and 'refs = (s, also = [], own) => h(\'span\', { class: \'refs\' }, [s, ...also].map(a => ref(a, own, true)))' in JL
+   and 'תשובת המאגר' in T('js', 'i18n.js'), 'v1.13 (review #9): the chip label for a bank-question source ("תשובת המאגר") is still in the app')
+# v1.13 (review #9 D5): maint2's carbon-monoxide rule keeps to the kids_co wording (no "closed car park" inference)
+_CO = [r['t'] for r in LB['maint2']['rules'] if r['s'] == 'OFF:kids_co']
+ok(len(_CO) == 1 and 'חניון' not in _CO[0] and 'אין להשאיר' not in _CO[0] and 'שיכולה להתרחש באזורים סגורים' in _CO[0], 'v1.13 (review #9 D5): maint2 CO rule states only what kids_co says')
+# v1.13 (review #9 D6): the Compensation Law source JSON is in the repo and its sha256 is the one pages.json records
+import hashlib, subprocess as _sp
+_PF = os.path.join(R, 'tools', 'official', 'cache', 'pitzuim_rev2968550.json')
+_trk = _sp.run(['git', 'ls-files', '--error-unmatch', _PF], cwd=R, capture_output=True).returncode == 0
+ok(_trk and os.path.exists(_PF) and hashlib.sha256(open(_PF, 'rb').read()).hexdigest() == J('tools', 'official', 'pages.json')['pitzuim']['src_sha256'],
+   'v1.13 (review #9 D6): the committed pitzuim API JSON reproduces src_sha256')
+# v1.13 (D1 follow-up): no full verdict rests only on uncited lesson-body prose – practice feedback always has a cited rule
+_BO = sorted(int(i) for i, e in CF['q'].items() if e['v'] == 'full' and e.get('rule') and all('#b' in u for u in e['rule']))
+ok(not _BO, f'v1.13: no full verdict rests only on uncited lesson-body prose {_BO[:10]}')
+
+# v1.14 (review #10 N1): no wiki markup residue in any displayed passage (template params, braces, links, html)
+import re as _re
+_WK = _re.compile(r'סוג=|\w+=\S|\{\{|\}\}|\[\[|\]\]|<[a-z/]|&nbsp;|\|')
+_res = sorted({(l['id'], k, i) for l in LALL for k in ('rules', 'mnem', 'recap', 'ex') for i, r in enumerate(l.get(k, [])) for x in r.get('x', []) if _WK.search(x[1])})
+_res += sorted({('src', s_) for s_, v in SRC.items() for e in v.get('ex', []) if _WK.search(e)})
+ok(not _res, f'v1.14 (review #10 N1): no wikitext residue (e.g. "סוג=הגדרה") in any chip passage {_res[:5]}')
+# v1.18 (review #14 D5): no PDF split word in any passage – a lone Hebrew letter between spaces ("מו פ יע", "ב קטע",
+# "תמרורי ם", "מ 2-נקודות") – except the table's own codes: the services prefix "ס - 62" and the variant mark "724 פ"
+_SL = _re.compile(r'(?<![^\s])([א-ת])(?=[\s.,:;]|$)')
+def _split_words(t):
+    return [t[max(0, m.start() - 12):m.end() + 12] for m in _SL.finditer(t)
+            if not (m[1] == 'ס' and _re.match(r'\s*-\s*\d', t[m.end():])) and not (m[1] == 'פ' and _re.search(r'\d\s$', t[:m.start()]))]
+_spl = sorted({(l['id'], k, i) for l in LALL for k in ('rules', 'mnem', 'recap', 'ex') for i, r in enumerate(l.get(k, [])) for x in r.get('x', []) if _split_words(x[1])})
+_spl += sorted({('src', s_) for s_, v in SRC.items() for e in v.get('ex', []) if _split_words(e)})
+ok(not _spl, f'v1.18 (review #14 D5): no split word (a lone Hebrew letter) in any chip passage {_spl[:5]}')
+# v1.18 (self-audit): a law chip never stops on an open list ("ויפרט בהודעה את –", "…, או") without saying it goes on (" …")
+_opn = sorted({(l['id'], k, i) for l in LALL for k in ('rules', 'mnem', 'recap', 'ex') for i, r in enumerate(l.get(k, [])) for x in r.get('x', [])
+               if x[0].startswith(('TR:', 'TO:')) and _re.search(r'(?:[–—:]|\sאו)\s*$', x[1])})
+ok(not _opn, f'v1.18 (self-audit): no law chip ends on an open list without " …" {_opn[:5]}')
+ok(_split_words('אם החץ מו פ יע בכיוון') and _split_words('ב קטע דרך') and _split_words('תמרורי ם') and not _split_words('ס - 62 מסעדה, 724 פ או'),
+   'v1.18: the split-word check itself flags "מו פ יע", "ב קטע", "תמרורי ם" and allows "ס - 62", "724 פ"')
+_lt = lambda k: ' '.join(SRC.get(k, {}).get('ex', []))
+ok('פנית פרסה אסורה. בחירת הנתיבים' in _lt('LT:203') and ' · כוחו יפה: בצומת או בתנועה שלפניך' in _lt('LT:203')
+   and _lt('LT:218').startswith('218 דרך לרכב מנועי') and ' · כוחו יפה: עד לצומת הבא' in _lt('LT:218') and 'המוצב לפני' not in _lt('LT:218'),
+   'v1.18 (review #14 D5): LT:203 and LT:218 are the sign\'s own entry, meaning and "כוחו יפה" columns shown apart')
+# v1.14 (review #10 N2): TR 54 table rows are pinned with their column headings – every speed rule's passage holds its number
+_T54 = [(l['id'], k, i, x[1]) for l in LALL for k in ('rules', 'mnem', 'recap', 'ex') for i, r in enumerate(l.get(k, [])) for x in r.get('x', []) if x[0] == 'TR:54' and _re.search(r'\(א\)', r.get('s', '') + '(א)')]
+_bad54 = [(a, b, c) for a, b, c, p in _T54 if p.startswith('דרך עירונית דרך עירונית') or 'רשות התימרור המרכזית' in p]
+ok(len(_T54) > 15 and not _bad54 and all(' – ' in p for _, _, _, p in _T54 if 'מהירות מרבית מותרת בקילומטרים לשעה' in p), f'v1.14 (review #10 N2): TR 54 chips show the table row with headings, not bare column headers or 54(ה1) ({len(_T54)} passages; {_bad54[:4]})')
+_L7 = LB['law3']['rules'][7]['x'][0][1]
+ok('דרך שאינה עירונית עם שטח הפרדה בנוי – 90' in _L7 and 'רכב מנועי למעט' in _L7, 'v1.14 (review #10 N2): law3#r7 chip states "…עם שטח הפרדה בנוי – 90" for its row')
+
+# v1.14 (review #10 N3): textbook chips are whole sentences/list items, not fragments
+# v1.15 (review #11 T1): these two checks read the full textbook pages, which gov.il terms do not let us republish;
+# from a clean clone run tools/official/fetch_cache.py (one download, sha256-pinned) – otherwise they are SKIPPED, visibly
+_TBPF = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'official', 'cache', 'textbook_pages.json'); SKIPS = []
+if not os.path.exists(_TBPF):
+    SKIPS += ['textbook chips end at sentence boundaries', 'textbook chips are in explanatory prose']
+    print('SKIP 2 textbook-page checks: official cache absent (gov.il terms do not allow republishing whole pages; run tools/official/fetch_cache.py)')
+else:
+    _TBP = [re.sub(r'\s+', ' ', p if isinstance(p, str) else p.get('t', '')) for p in json.load(open(_TBPF, encoding='utf-8'))]
+    _frag = []; _nt = 0
+    for _l in LB.values():
+        for _i, _r in enumerate(_l.get('rules', [])):
+            for _x in _r.get('x') or []:
+                if _x[0] != 'OFF:textbook': continue
+                _m = re.match(r'(.*) \(עמ׳ (\d+)\)$', _x[1]); _c = _m.group(1); _nt += 1
+                if len(_c) >= 45: continue
+                _t = _TBP[int(_m.group(2)) - 1]; _k = _t.find(_c); _e = _t[_k + len(_c):_k + len(_c) + 2]
+                if not (_c.rstrip().endswith(('.', '!', ':')) or _e.strip()[:1] in ('.', '•', '!', ':', '')): _frag.append(f"{_l['id']}#r{_i}")
+    ok(not _frag and _nt >= 320,  # v1.15: contained duplicate quotes no longer shown (was ≥340)
+        f'v1.14 (review #10 N3): every short textbook chip ends at a sentence/list-item boundary ({_nt} chips; fragments: {_frag[:8]})')
+    _smp = []
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'official')); import pin as _pin
+    _RAW = [p if isinstance(p, str) else p.get('t', '') for p in json.load(open(_TBPF, encoding='utf-8'))]
+    for _l in LB.values():
+        for _i, _r in enumerate(_l.get('rules', [])):
+            for _x in _r.get('x') or []:
+                if _x[0] != 'OFF:textbook': continue
+                _m = re.match(r'(.*) \(עמ׳ (\d+)\)$', _x[1]); _pg = _RAW[int(_m.group(2)) - 1]
+                for _z in _pin.quiz_spans(_pg): _pg = _pg.replace(_z, '')
+                if _pin.norm(_m.group(1)) not in _pin.norm(_pg): _smp.append(f"{_l['id']}#r{_i}")
+    ok(not _smp, f'v1.14: every textbook chip occurs in the explanatory prose (not a sample-exam block) of the page its tag names ({_smp[:8]})')
+# v1.14 (review #10 item 8 / N2): every number a rule/example/mnemonic/recap states appears in its displayed passages
+_W = {'1': ['אחת', 'אחד'], '2': ['שתי', 'שני', 'שנתיים', 'חודשיים'], '3': ['שלוש'], '4': ['ארבע'], '5': ['חמש', 'חמישה'], '6': ['שש', 'שישה'], '7': ['שבע'], '8': ['שמונה'], '9': ['תשע'], '10': ['עשר'], '11': ['אחד־עשר', 'אחד עשר', 'אחת עשרה'], '12': ['שנים עשר', 'שתים עשרה'], '14': ['ארבע עשרה'], '15': ['חמש עשרה', 'חמישה עשר'], '16': ['שש עשרה', 'שישה עשר', 'שש־עשרה'], '17': ['שבע עשרה', 'שבע־עשרה'], '18': ['שמונה עשרה', 'שמונה־עשרה'], '19': ['תשעה עשר', 'תשע עשרה'], '20': ['עשרים'], '21': ['עשרים ואחת'], '24': ['עשרים וארבע'], '30': ['שלושים'], '40': ['ארבעים'], '48': ['ארבעים ושמונה'], '50': ['חמישים'], '60': ['שישים'], '100': ['מאה'], '8.5': ['8 שעות ו־30 דקות']}
+def _nums(s):
+    s = re.sub(r'(תקנה|תקנות|תקנת|סעיף|סעיפים|תמרור|תמרורים|פקודה|שורה|פרט|חלק|ס׳|תק׳)\s*[\d]+[א-ת]?(\([^)]*\))*', '', s)
+    s = re.sub(r'\(\d+[א-ת]?(\([^)]*\))+\)', '', s); s = re.sub(r'\d+[א-ת]?\([א-ת0-9]+\)', '', s)
+    s = re.sub(r'\(בבנק[^)]*\)', '', s); s = re.sub(r'עמ׳\s*\d+(–\d+)?', '', s)
+    s = re.sub(r'\((\d{3}[א-ת]?(\([^)]*\))?(,\s*)?)+( ועוד)?\)', '', s)   # sign numbers (511), (909, 914 ועוד)
+    s = re.sub(r'[A-Za-z]+\d+|\d+[א-ת]\d+|\b\d(-\d)+\b', '', s)          # classes A1/C1, refs 12א1, mnemonic chains 1-2-3
+    s = re.sub(r'(?<![\d.])\d{1,2}\.\d{1,2}\.\d{4}(?!\d)', '', s); s = re.sub(r'\b(19|20)\d\d\b', '', s)
+    s = re.sub(r'(\d+)\s*(טון|אלף)', lambda m: str(int(m.group(1)) * 1000), s)
+    return set(re.findall(r'\d+(?:\.\d+)?', s.replace(',', '')))
+_nm = []; _nn = 0
+for _l in LB.values():
+    for _k, _F in (('rules', ('t',)), ('ex', ('t',)), ('mnem', ('t', 'n')), ('recap', ('b',))):
+        for _i, _r in enumerate(_l.get(_k, [])):
+            if not _r.get('x') or any(_x[0].startswith('Q:') for _x in _r['x']): continue
+            _t = ' '.join(str(_r.get(_f, '')) for _f in _F); _nn += 1
+            _P = ' '.join(re.sub(r'^\d+[א-ת]?\s', '', _x[1]) if _x[0].startswith('LT:') else _x[1] for _x in _r['x']).replace('(,)', '').replace(',', '')   # v1.15 (T2): a sign's own number is not evidence
+            _pf = {float(v) for v in re.findall(r'(?<![\d.])\d+(?:\.\d+)?(?![\d])', _P)}
+            _ids = {re.match(r'LT:(\d+)', _x[0]).group(1) for _x in _r['x'] if re.match(r'LT:\d+', _x[0])}   # sign ids name the sign, they are not claims
+            for _n in _nums(_t) - _ids:
+                if float(_n) in _pf or any(w in _P for w in _W.get(_n, [])): continue
+                _dm = re.fullmatch(r'(\d{1,2})\.(\d{1,2})', _n)
+                if _dm and re.search(r'(?<!\d)' + _dm.group(1) + r' ב', _P): continue   # date 1.11 ↔ "1 בנובמבר"
+                _nm.append(f"{_l['id']}#{_k}{_i}:{_n}")
+ok(not _nm and _nn >= 1000, f'v1.14 (review #10 item 8): every number stated in a rule/example/mnemonic/recap appears in its displayed passages ({_nn} items; missing: {_nm[:8]})')
+_pr = []
+for _l in LB.values():
+    for _k in ('rules', 'ex', 'mnem', 'recap'):
+        for _i, _r in enumerate(_l.get(_k, [])):
+            _pg = [int(p) for _x in _r.get('x') or [] for p in re.findall(r'\(עמ׳ (\d+)\)$', _x[1])]
+            for _m in re.finditer(r'עמ׳\s*(\d+)(?:[–-](\d+))?', ' '.join(str(_r.get(f, '')) for f in ('t', 'n', 'b'))):
+                if not any(int(_m.group(1)) <= p <= int(_m.group(2) or _m.group(1)) for p in _pg): _pr.append(f"{_l['id']}#{_k}{_i}")
+ok(not _pr, f'v1.14 (review #10 N3): a page cited in a rule text ("עמ׳ N") matches the page tag of one of its chips ({_pr[:8]})')
+# v1.15 (review #11 C1/T2): no junk passage – every displayed chip has real words (not just a number/punctuation)
+_jk = []; _nj = 0
+for _l in LB.values():
+    for _k in ('rules', 'ex', 'mnem', 'recap'):
+        for _i, _r in enumerate(_l.get(_k, [])):
+            for _x in _r.get('x') or []:
+                _nj += 1; _t = re.sub(r'\s*\(עמ׳ \d+\)$', '', _x[1])
+                if _x[0].startswith('LT:'): _t = re.sub(r'^(ס\s*-\s*)?\d+[א-ת]?\s', '', _t)
+                _w = re.findall(r'[א-תA-Za-z]{2,}', _t)
+                # v1.17: a service sign's whole entry is its name ("ס - 62 מסעדה") – one real word is the complete entry there
+                if (len(''.join(_w)) < 4) if _x[0].startswith('LT:ס-') else (len(_w) < 2 or len(''.join(_w)) < 7): _jk.append(f"{_l['id']}#{_k}{_i}:{_x[0]}:{_x[1][:20]}")
+ok(not _jk and _nj >= 1300, f'v1.15 (review #11 C1/T2): every displayed passage has real words beyond a sign number / punctuation ({_nj} chips; junk: {_jk[:6]})')
+_lc = LB['licence2']['rules'][3]; _l3 = LB['law3']['rules'][0]
+ok('אלא אם כן יוכיח מי נהג' in ' '.join(x[1] for x in _lc['x']) and 'כגון מצלמת מהירות' in ' '.join(x[1] for x in _lc['x']), 'v1.15 (review #11 C2): licence2#r3 chip carries the exception "אלא אם כן יוכיח מי נהג" and "כגון מצלמת מהירות" (p.145)')
+ok('המהירות המרבית חלה' not in _l3['t'] and 'להסעת המונים שאינו אוטובוס' in _l3['t'] and 'להסעת המונים שאינו אוטובוס' in ' '.join(x[1] for x in _l3['x']), 'v1.15 (review #11 C3): law3#r0 states only what TO 71א1 says, incl. the mass-transit-lane exception')
+_ltj = [(l['id'], k, i, x[1][:60]) for l in LB.values() for k in ('rules', 'ex', 'recap', 'mnem') for i, r in enumerate(l.get(k) or []) for x in r.get('x') or []
+        if x[0].startswith('LT') and (re.search(r'לוח תמרורים|ספטמבר 2022|התש ?פ', x[1]) or re.match(r'\s*\d+\s*[–-]\s*\d', x[1]))]
+ok(not _ltj, f'v1.15 (review #11 C1): no sign-table chip shows the PDF page header or a sign-number range instead of the sign\'s own entry {_ltj[:3]}')
+# v1.15 (review #11 C4/T3): each rule's distinctive claim terms appear in the passage its chips show
+_nz = lambda x: re.sub(r'\s+', ' ', re.sub(r'[״׳"\'`“”„‘’\-–—־.,;:!?()\[\]/•]', ' ', re.sub(r'[\u0591-\u05C7]', '', x))).strip()
+_MUST = {'duty#r7': ['תנאי הרשיון', 'לא ירשה לנהוג'], 'lanes#r4': ['בשטחים המתים', 'החלפה חדה'], 'overtake2#r7': ['הפרש מהירות', 'קריטי במעלה הר'],
+         'maint2#r9': ['משפת הכביש', 'האפוד הזוהר', 'המשולש', 'לאבטח את הרכב', 'לשחרר מעט את האומים', 'להציב את המגבה'],
+         'moveoff#r5': ['לפני שמגיעים אליה', 'לוחצים קלות על דוושת הדלק', 'סכנה לאיבוד שליטה'], 'gap2#r1': ['לראות משתמשי דרך אחרים', 'ולהיראות'],
+         'yield2#r5': ['אטית מאוד', 'בדיקה קפדנית', 'נפתח שדה הראייה', 'ורק אז'], 'bus#r6': ['ההגה והבלמים', 'לחץ האויר', 'האורות', 'הדלתות והחלון', 'הצופר', 'מגבי השמשות'], 'winter2#r2': ['חלון פתוח', 'מפשירי אדים'], 'cockpit#r12': ['הראייה ההיקפית', 'חפיפה', 'השטחים המתים'],
+         'parking3#r1': ['2מטרים', 'כאשר התחום מסומן', '12מטרים לפניו'], 'rules4#r1': ['נחסם', 'זכות קדימה לבא כנגדו'],
+         'licence2#r3': ['מצלמת מהירות', 'אלא אם כן יוכיח'], 'maint2#r0': ['בספר הרכב של היצרן'], 'emerg2#r2': ['לאחוז היטב בהגה', 'בקו ישר', 'פנצ'],
+         # v1.16 (review #12 D4): the parts of each claim the reviewer found missing from the displayed passage
+         'turns#r7': ['כשהוא מתקרב לעקומה או לפסגה תלולה'], 'speed#r7': ['בכל מקרה שבו צפויה סכנה', 'בהיכנסו לעקומות חדות', 'בירידה תלולה או ארוכה'],
+         'cockpit#r9': ['מביטים לכל הכיוונים'], 'tractor#r4': ['שומר” על מהירות נמוכה', 'להוריד להילוך נמוך'], 'maint2#r2': ['טיפול תקופתי', 'חיסכון בדלק', 'בלאי'],
+         'rail2#r2': ['בדומה לעקיפת רכב ארבעה-גלגלי'], 'signs3#r4': ['המונע בכוח מיכני'], 'turns#r5': ['מכביש חד סטרי', 'לא יחולו אם סומן בכביש אחרת'],
+         'skid2#r0': ['כלל זהב למניעת החלקה', 'הדרגתי ומבוקר', 'להאט לפני הכניסה לעקומה']}
+ok('משני צדי האופנוע' in json.dumps(LB['moto']['ex'][0], ensure_ascii=False), 'v1.16 (review #12): moto#x0 (Q1796/Q1595) shows the TR 120(א) "both sides of the motorcycle" passage')
+# v1.16 (review #12 D4): claim phrases that had no official passage must not come back in these rules' text
+_NOT = {'maint2#r2': ['תחזוקה מונעת', 'שומרת על תקינות'], 'tractor#r4': ['סיבובי המנוע'], 'rail2#r2': ['כמו רכב רגיל'], 'skid2#r0': ['מתמתנת']}
+_nb = [(_u, t) for _u, _ts in _NOT.items() for t in _ts if t in LB[_u.split('#')[0]]['rules'][int(_u.split('#r')[1])]['t']]
+ok(not _nb, f'v1.16 (review #12 D4): unsourced claim phrases stay out of the trimmed rules {_nb}')
+# v1.16 (review #12 D5/D6): sign-list chips carry only the sign's own entry (no variant/next-symbol residue);
+# a rule with several passages never opens with an unlabelled pronoun passage ("זהו המרחק…") and has at most one
+_res, _unl = [], []
+for _l in LALL:
+    for _i, _r in enumerate(_l['rules']):
+        _xs = _r.get('x') or []
+        for _x in _xs:
+            if _x[0].startswith('LT:') and (len(re.findall(r'ס\s*-\s*\d{3}', _x[1])) > 1 or re.search(r'(?<!או)(?<!עד)(?<!תמרור)\s\d{3}\s?פ\s+(?!או\s|עד\s)[א-ת]', _x[1]) or re.search(r'^\d{3} (?:פ|או|עד)\s', _x[1])):
+                _res.append(f"{_l['id']}#r{_i}")
+        _pr = [k for k, _x in enumerate(_xs) if re.match(r'^(זהו|זוהי|זו|זה|הוא|היא|הם)\s', _x[1])]
+        if len(_xs) > 1 and (0 in _pr or len(_pr) > 1): _unl.append(f"{_l['id']}#r{_i}")
+ok(not _res, f'v1.16 (review #12 D5): no sign-list chip carries another entry\'s residue {_res[:5]}')
+ok(not _unl, f'v1.16 (review #12 D6): multi-passage rules open with a labelled passage {_unl[:5]}')
+_mb = []
+for _u, _ts in _MUST.items():
+    _r = LB[_u.split('#')[0]]['rules'][int(_u.split('#r')[1])]; _px = _nz(' '.join(x[1] for x in _r.get('x') or [])).replace(' ', '')
+    _mb += [(_u, t) for t in _ts if _nz(t).replace(' ', '') not in _px]
+ok(len(_MUST) >= 15 and not _mb, f'v1.15 (review #11 C4): each listed rule\'s distinctive claim terms are in its own passage ({len(_MUST)} rules) {_mb[:4]}')
+# and generically: every cited rule shares at least two content words (4+ letters) with its passage
+_cw = lambda t: {w for w in _nz(t).split() if len(w) >= 3 and not w.isdigit()}
+_st = lambda S: {(w[1:] if w[0] in 'והבלמשכ' and len(w) > 4 else w)[:4] for w in S} | {w[:4] for w in S}
+_gb = [(l['id'], i) for l in LB.values() for i, r in enumerate(l.get('rules') or []) if r.get('x') and any(x[1] for x in r['x'])
+       and len(_st(_cw(r['t'])) & _st(_cw(' '.join(x[1] for x in r['x'])))) < 1]
+ok(not _gb, f'v1.15 (review #11 T3): every cited rule shares a content word with its passage {_gb[:6]}')
+# v1.15 (review #11 N3): no rule shows the same passage twice (rail2#r4 had it with and without a final period)
+_dup = [f"{_l['id']}#r{_i}" for _l in LB.values() for _i, _r in enumerate(_l.get('rules', []))
+        if any(_a != _b and re.sub(r'[^\u05d0-\u05ea\d]', '', re.sub(r' \(עמ׳ \d+\)$', '', _a[1])) in re.sub(r'[^\u05d0-\u05ea\d]', '', _b[1]) and _a[0] == _b[0]
+               for _a in _r.get('x') or [] for _b in _r.get('x') or [])]
+ok(not _dup, f'v1.15 (review #11 N3): no rule repeats a passage chip {_dup[:6]}')
+# v1.15 (review #11 C5): no chip shows the parser's doubled parentheses; bank-lesson subtitles match their items
+_LJ = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'lessons.json'), encoding='utf-8'))
+_pp = [k for k, n in _LJ['notes'].items() for x in n.get('x') or [] if re.search(r'\(\((נמחקה|בוטלה|בוטל|נמחק)\)', x[1])] + [l['id'] for l in _LJ['lessons'] for r in l.get('rules', []) for x in r.get('x') or [] if re.search(r'\(\((נמחקה|בוטלה|בוטל|נמחק)\)', x[1])]
+ok(not _pp, f'v1.15 (review #11 C5): no passage shows a repealed item as "((בוטלה).)" {_pp[:6]}')
+_CF = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'coverage_full.json'), encoding='utf-8'))['q']
+_bs = [l['id'] for l in _LJ['lessons'] if l['id'].startswith('bank_') and (any(_CF.get(str(q), {}).get('src') == 'X' for q in l['bank']) != ('סותרת את נוסח החוק' in l['sub']))]
+ok(not _bs and all('אין להן הסבר רשמי או מקור חוקי' not in l.get('sub', '') for l in _LJ['lessons']), f'v1.15 (review #11 C5): bank-lesson subtitles mention the law conflict exactly when they hold one {_bs}')
+# v1.16 (review #12 D1): textbook wording that is stricter than the pinned law is shown attributed, next to the law
+_units = [(f"{l['id']}#r{i}", r) for l in LB.values() for i, r in enumerate(l.get('rules') or [])] + [(f"{l['id']}#x{i}", e) for l in LB.values() for i, e in enumerate(l.get('ex') or [])]
+_zc = [u for u, r in _units if any('בכל ריכוז' in x[1] for x in r.get('x') or []) or 'בכל ריכוז' in r.get('t', '')]
+_zb = [u for u, r in _units if u in _zc and not (any(x[0].startswith('TO:64ב') for x in r.get('x') or []) and 'בספר הלימוד' in r['t'] and 'הסף המחייב' in r['t'])]
+_nd = [u for u, r in _units if 'אלכוהול' in r.get('t', '') and re.search(r'נהג חדש|לנהג חדש', r.get('t', '')) and not any(x[0].startswith('TO:64ב') for x in r.get('x') or [])]
+ok(_zc and not _zb and not _nd, f'v1.16 (review #12 D1): "in any concentration" (textbook p.147) is shown only attributed and beside TO 64ב(א)(3א); every new-driver alcohol rule cites TO 64ב {_zb[:4]} {_nd[:4]}')
+
+# v1.16 (review #12 H1): the About page shows the honest class-B headline – strict first, then the full figure with the estimate –
+# from data/coverage.json 'est', in the same wording as the COVERAGE.md headline; and 'est' matches the per-class totals.
+_CJ = J('data', 'coverage.json'); _E = _CJ.get('est') or {}
+_EN = re.search(r"'ab\.covB': '([^']*)'", open(os.path.join(R, 'js', 'i18n.js'), encoding='utf-8').read().split('const en = {')[1])
+_args = [f"{float(_E.get(k, 0)):.1f}" for k in ('B_strict', 'B_full', 'B_est', 'B_lo', 'B_hi')] + [str(_E.get('k')), str(_E.get('n')), f"{float(_E.get('rate', 0)):.1f}", str(_E.get('unchecked'))]
+_about = re.sub(r'\{(\d)\}', lambda m: _args[int(m[1])], _EN[1]) if _EN else ''
+ok(bool(_about) and _about in CM, f'v1.16: About class-B headline equals the COVERAGE.md headline ({_about[:90]}…)')
+ok(_E.get('B_strict') == CA['class']['B']['strict_pct'] and _E.get('B_full') == CA['class']['B']['full_pct'] and _CJ['tot']['B'][1] == _E['B_full'] and _CJ['tot']['B'][2] == _E['B_strict']
+   and _E['B_lo'] <= _E['B_est'] <= _E['B_hi'] < _E['B_full'] and _E['B_strict'] < _E['B_lo'], 'v1.16: coverage.json estimate matches the class-B totals (strict < estimate range < full as judged)')
+_AJ = open(os.path.join(R, 'js', 'app.js'), encoding='utf-8').read()
+# v1.21 (Part 2): the 'מה האתר מכסה' panel numbers for B and A – counts add up to the pool, match the coverage report,
+# none untaught, an A estimate inside its own range below full, and every B/A bank question reachable in practice/exam and a lesson quiz
+_QH = J('data', 'q.he.json'); _QH = _QH if isinstance(_QH, list) else _QH.get('questions', _QH)
+_LS = J('data', 'lessons.json')['lessons']
+for _c in ('B', 'A'):
+    _v = _CJ['tot'][_c]; _n, _full, _strict, _part, _bo, _ns, _cf = _v[0], _v[9], _v[10], _v[7], _v[5], _v[4], _v[11]
+    _pool = {q['id'] for q in _QH if _c in q['t']}
+    _inq = {i for l in _LS if _c in l['cls'] for i in (l.get('quiz') or []) + [b['q'] for b in (l.get('pbank') or [])]}
+    ok(_n == len(_pool) and _full + _part + _bo == _n and _ns + _cf == _bo and _strict <= _full
+       and abs(100 * _full / _n - _E[_c + '_full']) < 0.06 and abs(100 * _strict / _n - _E[_c + '_strict']) < 0.06
+       and _E[_c + '_lo'] <= _E[_c + '_est'] <= _E[_c + '_hi'] < _E[_c + '_full'],
+       f'v1.21: coverage panel {_c}: {_full} full ({_strict} strict) + {_part} partial + {_bo} bank-only = {_n}, 0 untaught, estimate {_E[_c + "_est"]}%')
+    ok(_pool <= _inq and all(q['k'] in ('law', 'safety', 'signs', 'vehicle') for q in _QH if _c in q['t']),
+       f'v1.21: every class-{_c} bank question ({len(_pool)}) is in the practice/exam pool with a topic and in some lesson quiz')
+ok(0 < _AJ.find("t('ab.covB'") < _AJ.find("t('ab.covText'") and 'COV.tot[c][2]).toFixed(1)}% / ' in _AJ, 'v1.16: About shows the strict figure first, then the estimate next to the full figure')
+# v1.16 (review #12 D3): the official sources disagree on how often to check tyre pressure (textbook p.126 "weekly", p.150 and
+# the tyres page "every two weeks"); every rule that states a pressure-check frequency names both and says the sources differ
+_tp = [f"{_l['id']}#r{_i}" for _l in LALL for _i, _r in enumerate(_l['rules']) if 'לחץ האוויר' in _r['t'] and re.search('שבוע', _r['t'])]
+_tpb = [u for u in _tp if not all(w in (lambda r: r['t'])(LB[u.split('#')[0]]['rules'][int(u.split('#r')[1])]) for w in ('פעם בשבוע', 'אחת לשבועיים', 'אינ'))
+        or not all(any(w in x[1] for x in LB[u.split('#')[0]]['rules'][int(u.split('#r')[1])]['x']) for w in ('פעם בשבוע', 'אחת לשבועיים'))]
+ok(len(_tp) >= 2 and not _tpb, f'v1.16 (review #12 D3): tyre-pressure frequency rules state both official wordings, cite both and label the inconsistency ({len(_tp)} rules) {_tpb}')
+# v1.17 (review #13 N2/N3): no markup, PDF page footer or RTL punctuation residue in ANY displayed string – sources.json
+# (titles, labels, excerpts), lessons.json and signs.json; sign-table excerpts are the sign's own cleaned entry
+def _strs(o, path=''):
+    if isinstance(o, str): yield path, o
+    elif isinstance(o, dict):
+        for k, v in o.items(): yield from _strs(v, path + '.' + str(k))
+    elif isinstance(o, list):
+        for i, v in enumerate(o): yield from _strs(v, path + f'[{i}]')
+_RES = re.compile(r'<\s*/?\s*(wbr|br|span|ref|small|big|sup|sub|div|p|b|i)\b|&nbsp;|&lt;|\{\{|\}\}|\[\[|\(\)[א-ת]|""[א-ת]')
+_FOOT = re.compile(r'ספטמבר 2022|\(נוסח משולב,|לוח תמרורים|ק"ת התשפ"ב')   # the PDF running footer; legitimate only in a document title
+_res = [(f, p, v[:80]) for f, o in (('sources', SRC), ('lessons', J('data', 'lessons.json')), ('signs', SG)) for p, v in _strs(o)
+        if _RES.search(v) or (_FOOT.search(v) and not re.search(r'\.(doc|title|name)$', p))]
+ok(not _res, f'v1.17 (review #13 N2/N3): no markup / PDF-footer / reversed-bracket residue in any displayed string of sources.json, lessons.json, signs.json ({len(_res)}) {_res[:4]}')
+_LTX = [(k, e[:60]) for k, v in SRC.items() if v['kind'] == 'LT' for e in v['ex']
+        if re.search(r'(^|\s)[.,:;]+(\S|\s|$)', e) or re.search(r'\s\d{1,3} לוח תמרורים', e)
+        or re.search(r'""[א-ת]', e)
+        or k[3:].isdigit() and any(int(k[3:]) < int(n) <= int(k[3:]) + 9 and pv not in ('תמרור', 'או', 'עד', '-', 'לתמרור', 'ו', 'ב')
+                                   for pv, n in re.findall(r'(\S+)\s(\d{3})(?=\s[א-ת])', e))]
+ok(not _LTX, f'v1.17 (review #13 N2): sign-table excerpts in sources.json carry no displaced punctuation and no neighbouring entry ({len(_LTX)}) {_LTX[:4]}')
+_TT = [(k, v['title']) for k, v in SRC.items() if v['kind'] in ('TR', 'TO') and ('<' in v['title'] or '>' in v['title'])]
+ok(not _TT and 'בעלי־חיים' in SRC.get('TR:462', {}).get('title', ''), f'v1.17 (review #13 N3): law-section titles have no <wbr> ({_TT[:3]})')
+# v1.17 (review #13 N1): the MoE file server intermittently serves an HTML "404" for valid booklet URLs – every meyda source is
+# flagged so the lawbox warns about it, pages.json carries the corrected note, and fetch_cache verifies %PDF magic + sha256
+_my = [k for k, v in SRC.items() if 'meyda.education.gov.il' in (v.get('url') or '')]
+_FC = T('tools', 'official', 'fetch_cache.py')
+_PG = J('tools', 'official', 'pages.json')
+_PGl = _PG if isinstance(_PG, list) else list(_PG.values())
+ok(_my and all(SRC[k].get('flaky') for k in _my) and "'ln.flaky'" in I18 and 'x.flaky' in JL and "b'%PDF-'" in _FC and '--pdf-dir' in _FC
+   and all('intermittent' in (_PG[i].get('note') or '') for i in ('edu07', 'edu13')) and not any('removed upstream' in (p.get('note') or '') for p in _PGl),
+   f'v1.17 (review #13 N1): {len(_my)} MoE-server sources flagged as flaky in the UI; fetch_cache checks %PDF + sha, retries, falls back to --pdf-dir')
+
+# v1.17 (review #13 N4/N5): stricter claim-in-passage check. Every clause of a rule (3+ words of 4+ letters) must have
+# at least 34% of its words (with Hebrew prefix/suffix stems) in the rule's own cited passages or the full cited section.
+# Remaining low-overlap clauses were each re-read against the source; they are paraphrase, a heading or a gloss of a section number.
+import re as _re
+_LAW = json.load(open(os.path.join(os.path.dirname(__file__), '..', 'law', 'law.json')))
+_SRC = json.load(open(os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'sources.json')))
+def _stems(w):
+    out = {w}
+    while len(w) > 3 and w[0] in 'והבלמשכ': w = w[1:]; out.add(w)
+    for x in list(out):
+        for suf in ('ים', 'ות', 'ה', 'ת', 'ו', 'י'):
+            if x.endswith(suf) and len(x) - len(suf) >= 3: out.add(x[:-len(suf)])
+    return out
+def _norm(t): return _re.sub(r'[\u0591-\u05C7]', '', t).replace('־', ' ').replace('-', ' ').replace('״', '"')
+def _full(sid):
+    m = _re.match(r'(TR|TO):(\d+[א-ת]*)', sid)
+    if m and m[2] in _LAW[m[1]]: return _LAW[m[1]][m[2]]['text']
+    e = _SRC.get(sid, {}).get('ex', '')
+    return ' '.join(e) if isinstance(e, list) else str(e)
+_CLAIM_OK = {
+ 'accident#r7': 'heading clause; the cited MDA text is the duty to stop and help',
+ 'moto3#r4': 'TR 306 "all parts and accessories ... at all times" read for lights by day',
+ 'newdrv#r7': 'section-number glosses (57, 26(2)) of the cited third schedule',
+ 'roads2#r20': 'slow down / stop if needed – paraphrase of TR 64(ב) yield',
+ 'signal#r0': 'list heading of TR 41 (turn, deviate, move off)',
+ 'signal#r5': 'paraphrase of TR 41(ג) giving the signalling vehicle room',
+ 'signs2#r10': 'heading for the service-symbol signs of the sign table',
+ 'taxi2#r4': 'list heading of the cited bus-driver sections',
+ 'taxi2#r5': 'list heading of the cited passenger sections',
+ 'vehicle#r13': 'paraphrase of TR 306/308: do not drive a vehicle that is not in order',
+ 'vehicle#r2': 'heading of the emergency-page list of warning signs',
+ 'vehicle#r3': 'paraphrase of TR 306 + 318א (engine condition)',
+ 'rules4#r11': 'paraphrase of TO 62 (forging / altering a licence)',
+ 'rules4#r2': 'paraphrase of TR 72',
+ 'law4#r12': 'meta note on the bank answer, not a claim',
+ 'priority#r10': 'paraphrase of TR 64 entering a busy junction',
+ 'equip#r17': 'paraphrase of TR 87 (100 m behind)',
+ 'moto2#r14': 'purpose clause of the cited textbook passage',
+ 'alc2#r4': 'heading of the cited TO 47/47א clauses',
+ 'brakes3#r5': 'textbook ABS passage paraphrased (pedal vibration is normal)',
+ 'docs#r0': 'heading of TO 3 / TR 2 documents list',
+ 'gap2#r3': 'heading of the tailgating textbook case',
+ 'parking#r7': 'paraphrase of TR 72(ב) bridge/tunnel 50 m',
+ 'rail2#r4': 'sign name heading',
+ 'shoulder2#r6': 'paraphrase of TR 21(ב)',
+ 'signs#r7': 'TR 1 definition of a sign includes road markings',
+ 'signs3#r12': 'sign-group heading',
+ 'speed#r5': 'paraphrase of the speed-limit sign meaning',
+ 'taxi2#r7': 'heading of the cited taxi-marking section',
+ 'winter2#r0': 'paraphrase of the cited textbook lights/windows passage',
+}
+_SK = _re.compile(r'נוהגים אחרת נוהגים נכון|kids\.gov|המקורות הרשמיים|הספר עצמו|אינו אחיד|בנוסח הפקודה')
+_low = set()
+for _l in L['lessons'] if isinstance(L, dict) else L:
+    for _i, _r in enumerate(_l.get('rules', [])):
+        _xs = _r.get('x') or []
+        if not _xs: continue
+        _P = _norm(' '.join(x[1] for x in _xs) + ' ' + ' '.join(_full(x[0]) for x in _xs))
+        for _c in _re.split(r'[.;:?!]\s|\s–\s|, (?=לכן|למשל|וגם|כי|כש)', _norm(_r.get('t') or '')):
+            if _SK.search(_c): continue
+            _ws = _re.findall(r'[א-ת]{4,}', _c)
+            if len(_ws) < 3: continue
+            _miss = [w for w in _ws if not any(st in _P for st in _stems(w))]
+            if 1 - len(_miss) / len(_ws) < 0.34: _low.add(f"{_l['id']}#r{_i}")
+ok(_low <= set(_CLAIM_OK), f'v1.17 (review #13 N5): every rule clause is backed by its cited passage – {len(_low)} low-overlap rules, all reviewed; new: {sorted(_low - set(_CLAIM_OK))[:8]}')
+_alltxt = json.dumps(L, ensure_ascii=False)
+_gone = ['וגם בזמן עקיפה אין לעבור אותה', 'רק אם הוא כבר החל לצאת', 'כוח הבלימה או כוח ההתמדה', 'למשל כשרכב נכנס לנתיבך', 'גם ביום בקיץ']
+ok(not [g for g in _gone if g in _alltxt], f'v1.17 (review #13 N4/N5): phrases not in the source are gone from the lessons {[g for g in _gone if g in _alltxt]}')
+_ltx = [(k, e) for k, v in _SRC.items() if k.startswith('LT:') for e in v.get('ex', [])]
+_badlt = [k for k, e in _ltx if e.endswith('נוהג רכב') or (len(e) >= 200 and not _re.search(r'[.!?)…]$', e)) or _re.search(r'(^|\s)![א-ת]', e)]
+ok(not _badlt, f'v1.17 (review #13 N7): {len(_ltx)} sign-table passages end on a whole word ("…" when cut), without the addressee column "נוהג רכב" or a reversed "!" {_badlt[:6]}')
+_incon = []
+for _l in L:
+    _nr = {(_r.get('t') or '')[:40] for _r in _l.get('rules', []) if 'אינו אחיד' in (_r.get('t') or '')}
+    _incon += [f"{_l['id']}:{e.get('q')}" for e in (_l.get('ex') or []) if (e.get('t') or '')[:40] in _nr and 'אינו אחיד' not in e.get('t', '')]
+ok(not _incon, f'v1.17 (review #13 N8): a lesson example keeps the "the book is not uniform" note of its rule {_incon[:5]}')
+# v1.18 (review #14 D1): sentence integrity of EVERY source chip (OFF + TR/TO) – no dropped negation before a chip,
+# no chip starting/ending inside a word, no OFF chip starting/ending mid-sentence (tools/test/chip_integrity.py)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import chip_integrity as _CI
+_st = _CI.selftest()
+ok(_st[0] and any(f.startswith('NEG') for f in _st[0]) and _st[1] and _st[2] == [],
+   f'v1.18 (review #14 D1): chip-integrity check catches the dropped "ואל לו לנהג" and the broken "שמערכת ABSפועלת כהלכה" fragment ({_st})')
+if not _CI.available():
+    SKIPS += ['chip sentence integrity']
+    print('SKIP chip sentence-integrity check: official cache absent (run tools/official/fetch_cache.py)')
+else:
+    _n, _miss, _bad = _CI.scan(list(LB.values()))
+    ok(_n >= 900 and not _miss and not _bad,
+       f'v1.18 (review #14 D1): all {_n} source chips are whole sentences/clauses – no negation dropped before a chip, no mid-word/mid-sentence cut (not located: {_miss[:3]}; problems: {_bad[:4]})')
+
+# v1.18 (review #14 D2): twin questions – same normalised stem (or stem ≥0.9 similar) with the same / close correct answer –
+# must rest on the same cited rules with the same verdict, unless listed as DISTINCT (different subject or fact) with a reason.
+# Every candidate pair found by the scan has to be classified, so a new twin cannot slip through.
+import difflib as _dl, itertools as _it
+def _tn(s): return re.sub(r'[^\u05d0-\u05eaA-Za-z0-9]', '', re.sub(r'[\u0591-\u05c7]', '', s))
+TWINS = [(23, 1379), (25, 1339), (38, 239), (44, 951), (260, 1774), (320, 1121), (352, 1325), (614, 1220), (856, 1509),
+         (891, 1742), (992, 1001), (1525, 1720), (324, 1125), (1335, 1527)]
+TWIN_VERDICT_EXCEPT = {(856, 1509): 'same rule; Q1509 says "long breaks", not in the cited passage (review #12, judged strictly)'}
+DISTINCT = {(65, 66): 'police vs military police', (89, 90): 'two-way vs one-way road', (1026, 1029): 'different correct facts (wear vs heat)',
+            (1305, 1306): 'three vs two axles', (1650, 1716): 'quad vs tractor'}
+_cq = COV['q']; _it_q = sorted((q['id'], _tn(q['q']), _tn(q['a'][q['c']])) for q in Q if not q.get('i'))
+_cand = []
+for (_i, _s, _a), (_j, _t, _b) in _it.combinations(_it_q, 2):
+    if abs(len(_s) - len(_t)) > 0.1 * max(len(_s), len(_t)) + 2: continue
+    _rs = 1.0 if _s == _t else _dl.SequenceMatcher(None, _s, _t).ratio()
+    if _rs < 0.9: continue
+    _ra = 1.0 if _a == _b else _dl.SequenceMatcher(None, _a, _b).ratio()
+    if (_s == _t and _ra >= .45) or _ra >= .75: _cand.append((_i, _j))
+_uncl = [p for p in _cand if p not in DISTINCT and p not in TWINS]
+ok(not _uncl, f'v1.18 (review #14 D2): every twin-question candidate pair is classified as TWIN or DISTINCT ({len(_cand)} pairs; unclassified {_uncl[:6]})')
+_tbad = [(i, j, _cq[str(i)][0], _cq[str(i)][2], _cq[str(j)][0], _cq[str(j)][2]) for i, j in TWINS
+         if sorted(_cq[str(i)][2]) != sorted(_cq[str(j)][2]) or (_cq[str(i)][0] != _cq[str(j)][0] and (i, j) not in TWIN_VERDICT_EXCEPT)]
+ok(not _tbad and (260, 1774) in TWINS and _cq['260'][2] == ['defensive#r11'],
+   f'v1.18 (review #14 D2): {len(TWINS)} twin pairs share their cited rules and verdict (Q260 = Q1774 = defensive#r11, TR 107(ד)) {_tbad[:3]}')
+
+# v1.19 (review #15 D2): the sign dictionary keeps the LT table's columns apart – the last column (כוחו יפה / מיועד ל)
+# is cut off with " · " by its word positions in the pinned PDF (tools/signs/lt_cols.json), so no entry runs two cells together
+sys.path.insert(0, os.path.join(R, 'tools'))
+from signs_tidy import columns as _cols
+_LC = json.load(open(os.path.join(R, 'tools', 'signs', 'lt_cols.json')))
+_JOIN = re.compile(r'(?<!שבו)(?<!שבה)(?<!שלצידו)(?<!שלפניו)(?<!שמעליו)(?<!אם)(?<!גם)(?<=[\u05d0-\u05ea\d]) (הוצב התמרור|הוצב הרמזור|בחירת הנתיבים|שולב סמל|לענין זה|לעניין זה|חץ בצבע)')
+def _sign_bad(k, v):
+    p = []
+    if re.sub(r'(?<=[\u05d0-\u05ea])"(?=[\u05d0-\u05ea])', '', v).count('"') % 2: p.append('quote')
+    p += ['lone:' + v[max(0, m.start() - 8):m.end() + 8] for m in re.finditer(r'(?<!\S)[\u05d0-\u05ea](?!\S)', v) if not v.startswith('ס -', m.start())]
+    p += ['join:' + v[max(0, m.start() - 12):m.end()] for m in _JOIN.finditer(v)]
+    if '·' not in v and _cols(v, _LC, k) != v: p.append('column not cut')
+    return p
+_sb = {k: b for k, v in SG['e'].items() for b in [_sign_bad(k, v)] if b}
+ok(not _sb, f'v1.19 (review #15 D2): no sign-dictionary entry merges table columns, leaves a lone letter or an unclosed quote ({len(_sb)}) {list(_sb.items())[:3]}')
+_cut = sum('·' in v for v in SG['e'].values())
+ok(_cut >= 230 and all(re.search(r' · (כוחו יפה|מיועד ל): \S', v) for v in SG['e'].values() if '·' in v), f'v1.19: {_cut} sign entries carry their last table column as " · כוחו יפה: / מיועד ל: …"')
+ok(_sign_bad('706', 'צומת מרומזר – הוראות כל דין בחירת הנתיבים תהיה') and _sign_bad('1', 'מקום "עצור') and _sign_bad('1', 'האו ר הירוק')
+   and not _sign_bad('706', SG['e']['706']), 'v1.19: the sign-entry check catches a merged column, an unclosed quote and a lone letter (self-test)')
+ok('בחירת הנתיבים' in SG['e']['706'] and ', בחירת הנתיבים' in SG['e']['706'] and SG['e']['706'].endswith('· מיועד ל: נוהג רכב'), 'v1.19: sign 706 reads "…הוראות כל דין, בחירת הנתיבים…" with its own column')
+
+# v1.19 (review #15 D1): operative-term audit. For every fully taught question, the answer's own words (not in the question) that the
+# law has in a paragraph a cited chip elides ("… ") must also appear in some displayed passage of the question's cited rules –
+# otherwise the deciding paragraph is hidden (Q1767: TR 47(ב)(3) was elided). Each pair left below was read: the hit is incidental.
+from overlap import words as _ow
+_LAW = json.load(open(os.path.join(R, 'tools', 'law', 'law.json')))
+def _nz(t): return re.sub(r'\s+', ' ', re.sub(r'[\u0591-\u05c7]', '', t.replace('־', ' ').replace('״', '"').replace('”', '"').replace('“', '"'))).strip()
+_XR = {f"{l['id']}#r{i}": r for l in LALL for i, r in enumerate(l['rules'])}
+def _elided(r):
+    out = ''
+    for src, ps in r.get('x', []):
+        m = re.match(r'(T[RO]):(\d+[א-ת]?\d*)', src)
+        if not m or '…' not in ps or m[2] not in _LAW[m[1]]: continue
+        T = _nz(_LAW[m[1]][m[2]]['text']); pcs = [p for p in (_nz(x).strip(' ;') for x in ps.split('…')) if p]; pos = []
+        for p in pcs:
+            i = T.find(p[:40])
+            if i < 0: break
+            pos.append((i, i + len(p)))
+        if len(pos) == len(pcs): out += ' ' + ' '.join(T[a[1]:b[0]] for a, b in zip(pos, pos[1:]))
+    return out
+ELIDE_OK = {('881', 'priority#r2'): 'מימינו – (3) itself gives way to all traffic on the paved road', ('1737', 'parking#r3'): '(6) shown',
+            ('1171', 'parking#r7'): 'the taxi exception is another unit; the elided items are other places', ('212', 'parking#r8'): '(12) shown (20 m)',
+            ('1757', 'parking2#r3'): '(9) shown (לרבות שולי הדרך)', ('213', 'parking2#r5'): '(12) shown incl. the 12 m proviso', ('1144', 'bus#r5'): 'לפחות – (1) hammers shown',
+            ('340', 'tractor2#r3'): '(4) shown (sign + lights)', ('1788', 'law2#r6'): 'TO 70 list – the elided items are other subjects', ('40', 'terms#r7'): 'vehicle-class table, other classes',
+            ('791', 'turns#r5'): 'textbook p.49 (two left lanes) shown', ('1587', 'moto3#r6'): 'bus-stop item shown', ('1305', 'heavy2#r2'): '(א) 12.00 shown',
+            ('1306', 'heavy2#r2'): '(א) 12.00 shown', ('1652', 'heavy2#r2'): '(ג) 18.75 shown', ('1799', 'heavy2#r2'): '(ד)(1) 16.50 shown',
+            ('1545', 'heavy2#r3'): 'TR 1 definition of נגרר shown; elided = other definitions', ('1425', 'cargo2#r5'): '(2) escort before/behind shown'}
+_eb = []
+for qid, e in cq.items():
+    if e[0] != 'f': continue
+    # units of measure are not operative terms (the chapeau-bearing chips elide '(1) … מטרים' while showing the figure itself)
+    q = byid[int(qid)]; aw = _ow(q['a'][q['c']]) - _ow(q['q']) - _ow('מטרים מטר מטרי קילוגרם')
+    shown = set().union(*[_ow(' '.join(p[1] for p in _XR[u].get('x', []))) for u in e[2] if u in _XR] or [set()])
+    for u in e[2]:
+        if u not in _XR: continue
+        hit = (aw & _ow(_elided(_XR[u]))) - shown
+        if hit and (len(hit) >= 2 or not aw & shown) and (qid, u) not in ELIDE_OK: _eb.append((qid, u, sorted(hit)[:4]))
+ok(not _eb, f'v1.19 (review #15 D1): no fully taught answer rests on a paragraph its cited chip elides ({len(_eb)}) {_eb[:12]}')
+_old = {'t': 'x', 's': 'TR:47(ב)', 'x': [['TR:47', '(ב) מותר לנוהג רכב לעקוף רכב אחר מצדו הימני במקרים אלה: (1) נוהג הרכב האחר נמצא בנתיב לפניה שמאלה בלבד או מתכוון לפנות שמאלה ואותת על כך; … (4) נוהג הרכב נוסע בנתיב המיועד לפניה ימינה בלבד.']]}
+ok('לתחבורה ציבורית' in _elided(_old) and 'נוהג הרכב נוסע בנתיב שיועד לתחבורה ציבורית' in _XR['overtake#r3']['x'][0][1] and '(2) בפניה שמאלה' in _XR['overtake#r3']['x'][0][1],
+   'v1.19: overtake#r3 shows TR 47(ב)(2) and (3) (Q1767); the audit sees the v1.18 elision (self-test)')
+
+# v1.19 (review #15 D6): a law chip never opens on a bare numbered paragraph "(N) …" without the chapeau that governs it,
+# and the lead-ins named by the review are present (TO 64ב(א)(3א) over "(ב) נהג שטרם מלאו לו 24 שנים"; cockpit#r1; newdrv#m0)
+_LJ = {l['id']: l for l in json.load(open(os.path.join(R, 'data/lessons.json'), encoding='utf-8'))['lessons']}
+_bare = [f'{lid}.{kd}{i}' for lid, L_ in _LJ.items() for kd in ('rules', 'mnem', 'recap') for i, u_ in enumerate(L_.get(kd, []))
+         for x_ in u_.get('x', []) if x_[0][:2] in ('TR', 'TO') and re.match(r'\(\d', x_[1])]
+ok(not _bare, f'v1.19 D6: no law chip starts with a bare "(N)" paragraph (was 12) {_bare[:8]}')
+_xs = lambda lid, kd, i: ' '.join(x_[1] for x_ in _LJ[lid][kd][i]['x'])
+ok('(3א) אחד המנויים להלן' in _xs('sober', 'mnem', 0) and '50 מיקרוגרם' in _xs('sober', 'mnem', 0)
+   and 'לא יעלה אדם לרכב ולא יירד ממנו אלא' in _xs('cockpit', 'rules', 1) and 'מצדו הימני ליד מדרכה או שול' in _xs('cockpit', 'rules', 1)
+   and '(1) בשלושת החודשים' in _xs('newdrv', 'mnem', 0) and 'יותר משני נוסעים' in _xs('newdrv', 'mnem', 0)
+   and 'לא ישלם את האגרה' in _LJ['docs']['rules'][5]['t'],
+   'v1.19 D5/D6: sober#m0 shows the (3א) chapeau and 50 µg; cockpit#r1 the chapeau and the right-side item; newdrv#m0 all three claims; docs#r5 says what TR 174(ב) says')
+
+# v1.19 (review #15 D4): fatigue questions cite fatigue rules (Q1704 was mapped to the speed rule defensive#r1)
+_CF = json.load(open(os.path.join(R, 'data/coverage_full.json'), encoding='utf-8'))['q']
+def _rs(ref):
+    lid, n = ref.split('#r'); return _LJ[lid]['rules'][int(n)]['s']
+_fq = [k for k in ('1704', '856', '857', '1509', '1510') if not all(_rs(r).startswith('OFF:fatigue') for r in _CF[k].get('rule', [])) or not _CF[k].get('rule')]
+ok(not _fq, f'v1.19 (review #15 D4): Q1704 and its fatigue twins cite only the RSA fatigue rules {_fq}')
+# v1.19 (review #15 D8 + RTL self-audit): no PDF spacing / bidi artefacts in any shown passage or written text
+# (lessons, sources, sign dictionary; the data.gov.il bank stays verbatim and is not scanned)
+_SP = re.compile(r'\d[א-ת]{2}|[A-Za-z][א-ת]|[א-ת][A-Za-z]| [,.;:][א-ת"“]| [,;](?=\s|$)|[^\s:] -[א-ת"“]|“ \+|•[א-ת]|[א-ת],[א-ת]|(?:^|\s)[,.](?:\d|[A-Za-z])')
+def _strs(o):
+    if isinstance(o, str): yield o
+    elif isinstance(o, dict):
+        for v in o.values(): yield from _strs(v)
+    elif isinstance(o, list):
+        for v in o: yield from _strs(v)
+_spx = []
+for _f in ('lessons.json', 'sources.json', 'signs.json'):
+    for _s in _strs(json.load(open(os.path.join(R, 'data', _f), encoding='utf-8'))):
+        for _m in _SP.finditer(_s):
+            if re.search(r'תוספת\d+פרט', _s[max(0, _m.start() - 8):_m.end() + 4]): continue   # ids such as TO:תוספת3פרט1
+            _spx.append((_f, _s[max(0, _m.start() - 15):_m.end() + 8]))
+ok(not _spx, f'v1.19 (review #15 D8): no glued number/Latin–Hebrew, detached punctuation or glued dash in lessons/sources/signs ({len(_spx)}) {_spx[:6]}')
+_ed = {'licence2': ('דרגת רשיון B מאפשרת', '3,500 ק”ג'), 'moveoff': ('50 קמ”ש – מרחק',), 'alc2': ('אלכוהול, סמים', 'ינשוף – 240 מיקרוגרם', '50 מ”ג')}
+ok(all(any(w in x[1] for r in _LJ[l]['rules'] for x in r.get('x', [])) for l, ws in _ed.items() for w in ws), 'v1.19 (review #15 D8): the named textbook chips read with their spaces (licence2#r0, moveoff#r10, alc2#r0)')
+# v1.19 (review #15 T1): chip_integrity.py run on its own without the official cache skips cleanly (it crashed with FileNotFoundError)
+import subprocess as _sp
+_ci = _sp.run([sys.executable, os.path.join(R, 'tools/test/chip_integrity.py')], capture_output=True, text=True, env={**os.environ, 'THEORY_OFFICIAL_CACHE': '/nonexistent/cache/'})
+ok(_ci.returncode == 0 and 'SKIP' in _ci.stdout and 'Traceback' not in _ci.stderr, f'v1.19 (review #15 T1): chip_integrity.py skips without the cache (rc {_ci.returncode}: {_ci.stderr[-120:]})')
+# v1.20 (review #16 N1): the 'למה?' box shows every sign entry whole (v1.19 cut it at 220 chars, hiding 'כוחו יפה' for 25 signs –
+# Q584 sign 626, Q532 sign 501); each column on its own line. The render is mirrored here over every sign-feedback question.
+_LJS = open(os.path.join(R, 'js/learn.js'), encoding='utf-8').read()
+_SGJ = json.load(open(os.path.join(R, 'data/signs.json'), encoding='utf-8')); _SG = _SGJ['e']
+_wb = _LJS[_LJS.index("if (x.kind === 'sign')"):_LJS.index("} else if (x.kind === 'rule'")]
+_rend = lambda t: [c for c in t.split(' · ')]   # learn.js: s.t.split(' · ').map(col => span(col))
+_n1 = [(q, n) for q, ns in _SGJ['q'].items() for n in ns if n in _SG and ' '.join(_rend(_SG[n])).replace('  ', ' ') != _SG[n].replace(' · ', ' ').replace('  ', ' ')]
+_col = [(q, n) for q, ns in _SGJ['q'].items() for n in ns if n in _SG and any(k in _SG[n] for k in ('כוחו יפה:', 'מיועד ל:')) and not any(c.startswith(('כוחו יפה:', 'מיועד ל:')) for c in _rend(_SG[n]))]
+ok(not re.search(r'slice\(|substring\(|substr\(|…', _wb) and "s.t.split(' · ')" in _wb and not _n1 and not _col,
+   f"v1.20 (review #16 N1): every sign 'למה?' box shows the whole entry with its 'כוחו יפה'/'מיועד ל' column ({sum(len(v) for v in _SGJ['q'].values())} question×sign feedbacks; cut: {_n1[:4]}; column lost: {_col[:4]})")
+ok('עד לצומת הקרוב' in ' '.join(_rend(_SG['626'])) and _SGJ['q'].get('584') == ['626'], "v1.20 (review #16 N1): Q584's why box shows sign 626 'כוחו יפה: עד לצומת הקרוב'")
+# v1.20 (review #16 N2): the About page's textbook-excerpt length claim is computed from the excerpts themselves (v1.19 said
+# 'up to 20 words' while 76 of 349 were longer, max 49)
+_TQ = json.load(open(os.path.join(R, 'tools/official/pages.json'), encoding='utf-8'))['textbook']['quotes']
+_TW = sorted(len(z['t'].split()) for z in _TQ); _TB = json.load(open(os.path.join(R, 'data/coverage.json'), encoding='utf-8'))['tb']
+_I18 = open(os.path.join(R, 'js/i18n.js'), encoding='utf-8').read()
+_tbt = re.findall(r"'ab\.tbookText': '([^']*)'", _I18)
+ok(len(_TB) == 8 and _TB[2] == len(_TQ) and _TB[5] == _TW[len(_TW) // 2] and _TB[6] == _TW[-1] and _TB[7] == sum(w <= 20 for w in _TW)
+   and len(_tbt) == 2 and all(all('{%d}' % i in x for i in (2, 5, 6, 7)) for x in _tbt) and not any(re.search(r'עד 20 מילים לקטע|at most 20 words', x) for x in _tbt),
+   f"v1.20 (review #16 N2): About excerpt-length claim = data ({_TB[2:]} vs {len(_TQ)} excerpts, median {_TW[len(_TW) // 2]}, max {_TW[-1]}, ≤20: {sum(w <= 20 for w in _TW)})")
+# v1.20 (review #16 pedagogy): every question in a lesson's practice set is answered by a unit taught in THAT lesson
+# (v1.19: licence2 100/102 from other lessons, 134 such questions in 3 lessons, Q1333 with no teaching unit)
+_CF = json.load(open(os.path.join(R, 'data/coverage_full.json'), encoding='utf-8'))['q']
+_dq = [(l['id'], q) for l in _LJ.values() if not l['id'].startswith('bank_') for q in l['quiz']
+       if not any(u.split('#')[0] == l['id'] for u in (_CF.get(str(q), {}).get('rule') or []))]
+ok(not _dq and 1333 not in _LJ['licence2']['quiz'] and len(_LJ['licence2']['quiz']) >= 10,
+   f"v1.20 (review #16 pedagogy): every lesson practice question maps to a rule of the same lesson ({len(_dq)} dangling: {_dq[:6]}; licence2 {len(_LJ['licence2']['quiz'])})")
+# v1.20 (review #16 N3): named re-judgements and the sober#m0 item (א)
+_n3 = {q: (_CF[q]['v'], _CF[q]['rule']) for q in ('1790', '1009', '1014', '1780', '1509', '856', '859')}
+ok(_n3['1790'] == ('partial', ['alc2#r1']) and _n3['1009'] == ('full', ['safety2#r11']) and _n3['1014'] == ('full', ['safety2#r7'])
+   and _n3['1780'][0] == 'partial' and 'overtake#r5' in _n3['1780'][1] and _n3['1509'][0] == 'partial' and _n3['856'][0] == 'full'
+   and 'cockpit#r13' in _n3['859'][1] and 'מסוכנת מאוד' in ' '.join(p[1] for p in _LJ['safety2']['rules'][11]['x']),
+   f"v1.20 (review #16 N3): Q1790→alc2#r1, Q1009 on the airbag passage, Q1014 head restraint, Q1780/Q1509 partial ({_n3})")
+ok(any('(א) נהג חדש; (ב) נהג שטרם מלאו לו 24' in p[1] for p in _LJ['sober']['mnem'][0]['x']),
+   "v1.20 (review #16 N3): sober#m0 shows TO 64ב(א)(3א) item (א) נהג חדש beside (ב)")
+# v1.20 (review #16 N4/N6): no pdf split-word artefacts and no bracketed editor's punctuation anywhere a learner reads
+import sys as _sys; _sys.path.insert(0, os.path.join(ROOT, 'tools')) if 'ROOT' in dir() else _sys.path.insert(0, 'tools')
+from signs_tidy import vocab as _vocab
+_V = _vocab()
+def _strs(o):
+    if isinstance(o, str): yield o
+    elif isinstance(o, dict):
+        for v in o.values(): yield from _strs(v)
+    elif isinstance(o, list):
+        for v in o: yield from _strs(v)
+_split, _brk = set(), set()
+for _f in ('data/signs.json', 'data/lessons.json', 'data/sources.json'):
+    for _s in _strs(json.load(open(_f, encoding='utf-8'))):
+        _t = _s.split(' ')
+        for _a, _b in zip(_t, _t[1:]):
+            if re.fullmatch(r'[א-ת]{1,3}', _a) and re.fullmatch(r'[א-ת]{1,3}', _b) and min(len(_a), len(_b)) <= 2:
+                _w = _V.get(_a + _b, 0)
+                if _w >= 20 and _w >= 4 * max(_V.get(_a, 0), _V.get(_b, 0), 1): _split.add(_a + ' ' + _b)
+        _brk.update(re.findall(r'\d\([,./]\)\d|\([,./]\)[A-Z]', _s))
+ok(not _split and 'לצומת ועבור' in json.load(open('data/signs.json', encoding='utf-8'))['e']['514']
+   and 'את מעבר המפגש' in json.load(open('data/signs.json', encoding='utf-8'))['e']['722'],
+   f'v1.20 (review #16 N4): no split-word artefacts in signs/lessons/sources ({sorted(_split)[:5]}); 514 לצומת, 722 מעבר')
+ok(not _brk and '1,500 ק״ג' in json.dumps(_LJ['cargo'], ensure_ascii=False), f"v1.20 (review #16 N6): no '1(,)500'-style bracketed editor punctuation ({sorted(_brk)[:5]})")
+# v1.20 (review #16 item 6): a lesson chip that quotes a sign's last column shows it under the table's label (כוחו יפה / מיועד ל)
+_SEe = json.load(open('data/signs.json', encoding='utf-8'))['e']
+_nolab, _lab = [], 0
+for _l in json.load(open('data/lessons.json', encoding='utf-8'))['lessons']:
+    for _g in ('rules', 'mnem', 'ex', 'recap', 'pbank'):
+        for _r in _l.get(_g) or []:
+            for _x in (_r.get('x', []) if isinstance(_r, dict) else []):
+                _m = re.search(r' · (כוחו יפה|מיועד ל): (.+)$', _SEe.get(_x[0][3:], '')) if _x[0].startswith('LT:') else None
+                if not _m: continue
+                _w = re.findall(r'[^\s.,;:]+', _m[2])[:3]
+                if re.search(r'[\s.,;:]+'.join(map(re.escape, _w)), _x[1]):
+                    if f' · {_m[1]}: ' in _x[1]: _lab += 1
+                    else: _nolab.append(f"{_l['id']}:{_x[0]}")
+ok(not _nolab and _lab >= 40, f'v1.20 (review #16 item 6): sign chips show column 4 under its label ({_lab} labelled; unlabelled {_nolab[:5]})')
+# v1.20 (review #16 N5): pbank official parts never list the example's Q: link among their sources
+_lj = open('js/learn.js', encoding='utf-8').read(); _i18 = open('js/i18n.js', encoding='utf-8').read()
+ok("filter(a => !(x.o && a.startsWith('Q:')))" in _lj and "class: 'small refs exq'" in _lj and _i18.count("'ln.pbExQ':") == 2,
+   'v1.20 (review #16 N5): partial cards show the example bank question apart, labelled (he+en)')
+# v1.20.1 (review #17 #1): the rail worked example (Q449) must not say overtaking is already forbidden from sign 130 (~300 m);
+# TR 47(ה)(2) + textbook p. 82: only after the "100 מטר" sign (132)
+_rx = _LJI['rail']['ex'][0]
+ok('כבר אסור לעקוף' not in _rx['t'] and '132' in _rx['t'] and 'TR:47(ה)(2)' in _rx['also'] and 'OFF:textbook' in _rx['also'],
+   'rail#x0: no-overtaking starts after sign 132 ("100 מטר"), not at 130; TR:47 and textbook chips shown')
+ok(any('TR:47' in r['s'] and '132' in r['t'] for r in _LJI['rail']['rules']), 'rail TR 47(ה)(2) rule names sign 132 / "100 מטר"')
+# v1.20.1 (review #17 #2): Q228 (getting on/off a moving vehicle) rests on TR 81 (duty#r11), not on the STOP-sign rule
+ok(CF['q']['228']['v'] == 'full' and CF['q']['228']['rule'] == ['duty#r11'], 'Q228 full on duty#r11 (TR 81), not priority#x1 (TR 64(ד))')
+# v1.20.1 (review #17 #3): no partial is left out of every lesson – each one (all classes, not only B/A) is shown and
+# practised in the lesson of its first rule; the 10 questions v1.20 dropped from quizzes are back in their rule's lesson
+_PBQ = {p['q']: l['id'] for l in LJ['lessons'] for p in l.get('pbank', [])}
+_QZ = {q: l['id'] for l in LJ['lessons'] for q in l['quiz']}
+_PARTS = [k for k, e in CF['q'].items() if e['v'] == 'partial']
+ok(all(int(k) in _PBQ and int(k) in _QZ for k in _PARTS), f'every partial question ({len(_PARTS)}) is shown and practised in a lesson')
+_TEN = {612: 'taxi', 620: 'taxi', 1128: 'busline', 1129: 'terms', 1163: 'taxi', 1191: 'safety', 1192: 'bus', 1247: 'taxi2', 1516: 'blind', 1333: 'heavy'}
+ok(all(q in _LJI[l]['quiz'] for q, l in _TEN.items()), 'the 10 questions dropped from quizzes in v1.20 are practised in the lesson of their rule')
+ok(CF['q']['1333']['v'] == 'full' and CF['q']['1333']['rule'] == ['heavy#r6'] and 'TR:281' in _LJI['heavy']['rules'][6]['s'], 'Q1333 full on heavy#r6 (TR 281(א)(4))')
+ok(len(_LJI['docs2']['quiz']) >= 4 and len(_LJI['tractor2']['quiz']) >= 8, 'thin quizzes docs2/tractor2 filled with questions their own rules answer')
+# v1.20.1 (review #17 #5): sign chips whole; no unsourced interpretation; loose mappings re-judged strictly
+_SJ = J('data', 'sources.json')
+ok(_SJ['LT:432']['ex'][0].endswith('עד לתמרור 433, 434, 437, 626, 627, 817') and _SJ['LT:433']['ex'][0].endswith('עד לתמרור 432, 434, 437, 626, 627, 817'), 'LT:432/433 chips show the whole list of signs (not cut at "עד לתמרור")')
+ok(all("מס' 630" in _SJ['LT:%d' % n]['ex'][0] and "'מס 630" not in _SJ['LT:%d' % n]['ex'][0] for n in (130, 131, 132)), "LT:130–132 chips: geresh on the right side (מס' 630)")
+ok('מוכן להסתכן' not in json.dumps(LJ, ensure_ascii=False), 'no unsourced "מוכן להסתכן יותר" in any lesson')
+ok(any('מאטים ככל האפשר בעזרת הבלמים ותיבת ההילוכים' in x[1] for x in _LJI['vehicle']['rules'][12].get('x', [])), 'vehicle#r12: the braking clause has its textbook p.44 chip')
+ok(all(CF['q'][k]['v'] == 'full' for k in ('66', '1389', '1003')) and CF['q']['1389']['rule'] == ['alc2#r2'] and CF['q']['1003']['rule'] == ['vehicle#r10'], 'Q66/Q1389/Q1003 full on rules that state the answer (Q1389 no longer on the lane-drift rule)')
+# v1.22: sign flashcards – every card is an official sign-table entry with a local bank picture, in one of the 9 parts
+_fc = [n for n in SG['img'] if n in SG['e']]
+ok(len(_fc) >= 140 and all(os.path.isfile(os.path.join('img', 'q', SG['img'][n])) for n in _fc) and all(int(n) // 100 in range(1, 10) for n in _fc)
+   and SG['src']['url'].startswith('https://www.gov.il/'), f'flashcards: {len(_fc)} official signs with a local picture, gov.il source')
+_bk = open(os.path.join('js', 'backup.js'), encoding='utf-8').read()
+ok('raw.kn' in _bk and 'raw.fc' in _bk, "backup keeps v1.22 'I know' ticks (kn) and flashcard boxes (fc)")
+# v1.22.1: signs are chosen by picture – no number input anywhere, and the family shape hints are the bank's own answers
+import glob as _g, re as _re
+_js = {f: open(f, encoding='utf-8').read() for f in _g.glob('js/*.js')}
+ok(not [f for f, t in _js.items() if _re.search(r"type: ?'number'|inputmode: ?'numeric'|הקלידו מספר", t)], 'v1.22.1: no number input / "type a sign number" prompt in the app')
+_vz = _js['js/viz.js']; _ph = _re.search(r"id: 'vz-sd'[^}]*placeholder: '([^']*)'", _vz)
+ok(_ph and not _re.search(r'\d', _ph.group(1)), 'v1.22.1: dictionary placeholder suggests a word, not a sign number')
+_QB = {x['id']: x for x in json.load(open('data/q.he.json', encoding='utf-8'))}
+_fw = _re.findall(r"(\d): \['([^']+)', (\d+)\]", _vz[_vz.index('const FAMWHY'):_vz.index('let SGP')])
+_key = {606: 'משולש שקודקודו כלפי מעלה', 477: 'הוריה או איסור', 310: 'להבליטם', 1772: 'תמיד', 691: 'אתר של עבודה'}
+ok(len(_fw) == 6 and all(int(q) in _key and _QB[int(q)]['k'] == 'signs' and _key[int(q)] in _QB[int(q)]['a'][_QB[int(q)]['c']] + _QB[int(q)]['q'] and _key[int(q)].split()[-1] in t for _, t, q in _fw) and not any(int(q) in (281, 92) for _, _, q in _fw),
+   'v1.22.1: every family shape hint restates the correct answer of the bank question it names')
+print(f'\n{len(fails)} failed' if fails else '\nall data checks passed' + (f' ({len(SKIPS)} skipped: official cache absent)' if SKIPS else ''))
+sys.exit(1 if fails else 0)
+
+
