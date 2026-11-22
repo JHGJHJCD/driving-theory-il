@@ -249,4 +249,125 @@ function roadparts3d() {
   });
 }
 
-export const SCENES = { priority: priority3d, stopdist: stopdist3d, roadparts: roadparts3d };
+function makePed() {
+  const g = new THREE.Group(), skin = 0xe0b090;
+  g.add(box(0.5, 0.9, 0.3, 0xf5b301, 0, 1.05, 0)); const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 12), mat(skin)); head.position.y = 1.72; g.add(head);
+  const legs = [-0.12, 0.12].map(x => { const l = box(0.18, 0.65, 0.2, 0x2b3a55, x, 0.33, 0); g.add(l); return l; }); g.userData.legs = legs; return g;
+}
+const walkAnim = (ped, moving, now) => { const s = moving ? Math.sin(now * 9) * 0.45 : 0; ped.userData.legs[0].rotation.x = s; ped.userData.legs[1].rotation.x = -s; };
+function slowTo(cur, goal, rate, dt) { const d = goal - cur; return Math.abs(d) < 1e-3 ? goal : cur + Math.sign(d) * Math.min(Math.abs(d), rate * dt); }
+
+// ================================================================ SCENE 4: the hidden pedestrian (TR 67(א2), 67(א))
+function crosswalk3d() {
+  return fig3('הרכב בנתיב השני עצר לפני המעבר', 'לפי תקנה 67(א2) ו־67(א)', ({ C, ctl, say }) => {
+    const { scene, view } = C, ZB = -8, STOP = -2.9;
+    scene.add(flat(140, 140, 0x6f9c52, 0, 0, 0, { roughness: 1 }), flat(8, 140, 0x3b3f47, 0, 0), flat(0.16, 140, 0xffffff, 0, 0, 0.03), flat(16, 6, 0xb9ab8a, 0, ZB, 0.015));
+    for (let x = -3.4; x <= 3.5; x += 1) scene.add(flat(0.5, 3, 0xffffff, x, ZB, 0.03));
+    for (const x of [-4.6, 4.6]) scene.add(box(0.3, 0.2, 140, 0xbdbdbd, x, 0.1, 0));
+    scene.add(box(0.12, 3, 0.12, 0x555555, 5.6, 1.5, ZB + 2.4), box(1.3, 1.3, 0.08, 0x2a6fdb, 5.6, 3.1, ZB + 2.4));
+    const me = makeCar(0x2a6fdb), other = makeCar(0xe8693a), ped = makePed(); scene.add(me, other, ped);
+    const lab = label('אתה', { size: 1.3, bg: 'rgba(42,111,219,.95)' }); lab.position.set(0, 3.2, 0); me.add(lab);
+    const car = (x, z) => ({ x, z }), P = {};
+    const ST = [[car(1.8, 22), car(-1.8, 12), -6.2, 'אתה בנתיב הימני. הרכב בנתיב השמאלי מאט לקראת מעבר החצייה.'],
+      [car(1.8, 8), car(-1.8, STOP), -6.2, 'הרכב בנתיב השמאלי עצר לפני המעבר. ייתכן שהוא מסתיר הולך רגל – לכן גם אתה מאט ועוצר.'],
+      [car(1.8, STOP), car(-1.8, STOP), 1.8, 'אתה עומד לפני המעבר. הולך רגל יוצא מאחורי הרכב שעצר וחוצה.'],
+      [car(1.8, STOP), car(-1.8, STOP), 6.2, 'הולך הרגל סיים לחצות בבטחה. רק עכשיו ממשיכים.']];
+    let i = 0, tgt = null, eng = null, quiet = 0; const cur = { mz: 38, oz: 28, px: -6.2 };
+    place(me, { x: 1.8, z: cur.mz, h: 0 }); place(other, { x: -1.8, z: cur.oz, h: 0 }); ped.position.set(cur.px, 0, ZB);
+    const show = () => { const s = ST[i]; tgt = { mz: s[0].z, oz: s[1].z, px: s[2] }; say(`צעד ${i + 1} מתוך ${ST.length}: ${s[3]}`); nextB.disabled = i >= ST.length - 1; if (nextB.disabled && document.activeElement === nextB) againB.focus(); if (i === 1) setTimeout(sfx.brake, 700); if (i === 2) setTimeout(sfx.beep, 600); };
+    C.onDispose(() => eng?.stop());
+    C.onFrame((dt, now) => {
+      if (!tgt) return; const sp = reduced() ? 999 : 1;
+      const mz = slowTo(cur.mz, tgt.mz, 12 * sp, dt), oz = slowTo(cur.oz, tgt.oz, 12 * sp, dt), px = slowTo(cur.px, tgt.px, 2.2 * sp, dt);
+      const moving = mz !== cur.mz || oz !== cur.oz; const pm = px !== cur.px; cur.mz = mz; cur.oz = oz; cur.px = px;
+      place(me, { x: 1.8, z: mz, h: 0 }); place(other, { x: -1.8, z: oz, h: 0 }); ped.position.set(px, 0, ZB); ped.rotation.y = Math.sign(tgt.px - px || 1) > 0 ? -Math.PI / 2 : Math.PI / 2; walkAnim(ped, pm, now);
+      setBrake(me, moving && mz > STOP && i >= 1);
+      if (moving) { quiet = 0; if (!eng) eng = sfx.engine(); eng.set(0.35); } else if (eng && (quiet += dt) > 0.4) { eng.stop(); eng = null; }
+    });
+    const cams = { three: { yaw: 0.9, pitch: 0.5, dist: 26 }, top: { yaw: 0, pitch: 1.45, dist: 34 }, drv: null };
+    view.target.set(0, 0, ZB + 4); Object.assign(view, { yaw: 0.9, pitch: 0.5, dist: 26 });
+    const camSel = chipGroup([['three', 'מבט חצי'], ['top', 'מלמעלה'], ['drv', 'מבט הנהג']], 'three', k => { if (k === 'drv') { view.driver = me; view.goal = null; } else { view.driver = null; view.goal = { ...cams[k], target: new THREE.Vector3(0, 0, ZB + 4) }; } });
+    const nextB = btn('הצעד הבא', () => { sfx.click(); i++; show(); }, 'btn small primary'), againB = btn('מההתחלה', () => { sfx.click(); i = 0; cur.mz = 38; cur.oz = 28; cur.px = -6.2; show(); });
+    ctl.append(h('div', { class: 'row tight' }, nextB, againB), camSel); show();
+  });
+}
+
+// ================================================================ SCENE 5: the 1-second gap (TR 49(ב)); reaction/braking distance – bank questions 811, 809
+function gap3d() {
+  return fig3('שנייה אחת – כמה מטרים זה?', 'לפי תקנה 49(ב); מרחק תגובה ובלימה – שאלות 811, 809 במאגר', ({ C, ctl, say }) => {
+    const { scene, view } = C;
+    scene.add(flat(200, 400, 0x6f9c52, 0, 0, 0, { roughness: 1 }), flat(9, 400, 0x3b3f47, 0, 0));
+    const dashes = []; for (let k = 0; k < 40; k++) { const d = flat(0.16, 2.6, 0xeeeeee, 0, 0, 0.03); d.position.z = 100 - k * 6; scene.add(d); dashes.push(d); }
+    const back = makeCar(0x2a6fdb), front = makeCar(0xe8693a); back.position.set(1.8, 0, 0); front.position.set(1.8, 0, -20); scene.add(back, front);
+    const span = flat(1, 1, 0x2ecc71, 1.8, 0, 0.06, { transparent: true, opacity: 0.6, emissive: 0x2ecc71, emissiveIntensity: 0.5 }); scene.add(span);
+    let lab = label('', { size: 1.3 }), shown = '', eng = null, engOn = false;
+    const r = h('input', { id: 'vz3-v', type: 'range', min: 20, max: 120, step: 10, value: 90, 'aria-label': 'מהירות' }), out = h('output', { for: 'vz3-v', class: 'vz-out' });
+    const st = { v: 90, m: 25, dist: 25 };
+    const run = () => { const v = +r.value, m = v / 3.6; st.v = v; st.m = m; out.textContent = `${v} קמ"ש`;
+      say(`במהירות ${v} קמ"ש הרכב עובר כ־${Math.round(m)} מטר בשנייה (${v} חלקי 3.6). זה הרווח המינימלי לפי החוק – שנייה אחת. מרחק העצירה (תגובה + בלימה) גדול יותר וגדל עם המהירות.`);
+      eng?.set(v / 130); };
+    r.addEventListener('input', run);
+    r.addEventListener('change', () => sfx.click());
+    const engB = chip('צליל מנוע', false, () => { engOn = !engOn; engB.setAttribute('aria-pressed', String(engOn)); if (engOn) { eng = sfx.engine(); eng.set(st.v / 130); } else { eng?.stop(); eng = null; } });
+    C.onDispose(() => eng?.stop());
+    C.onFrame((dt, now) => {
+      st.dist += (st.m - st.dist) * Math.min(1, dt * 6);   // smooth growth of the gap
+      const gapM = st.dist, bz = 0, fz = -(gapM + 4.2); front.position.z = fz;
+      span.scale.set(1.7, gapM, 1); span.position.set(1.8, 0.06, -(2.1 + gapM / 2)); span.rotation.z = 0;
+      if (shown !== Math.round(gapM)) { shown = Math.round(gapM); scene.remove(lab); lab.material.map?.dispose(); lab = label(`${shown} מ׳`, { size: 1.5, bg: 'rgba(30,140,80,.92)' }); scene.add(lab); }
+      lab.position.set(1.8, 3.2, -(2.1 + gapM / 2));
+      for (const d of dashes) { d.position.z += st.m * dt; if (d.position.z > 100) d.position.z -= 240; }
+      view.target.set(1.8, 0.5, -(gapM / 2)); view.dist = 16 + gapM * 0.55;
+    });
+    Object.assign(view, { yaw: 1.15, pitch: 0.35, dist: 30 });
+    const cams = { side: { yaw: 1.15, pitch: 0.35 }, back: { yaw: 0.1, pitch: 0.3 }, top: { yaw: 0, pitch: 1.4 } };
+    const camSel = chipGroup([['side', 'מבט צד'], ['back', 'מאחור'], ['top', 'מלמעלה']], 'side', k => { view.goal = { ...cams[k], dist: view.dist, target: null }; });
+    ctl.append(h('label', { for: 'vz3-v', class: 'lbl', text: 'מהירות:' }), h('div', { class: 'row tight' }, r, out), h('div', { class: 'row tight' }, engB), camSel); run(); st.dist = st.m;
+  });
+}
+
+// ================================================================ SCENE 6: overtaking and the centre line (TR 47(ד), 47(ה)(5))
+function overtake3d() {
+  return fig3('מותר לעקוף כאן?', 'לפי תקנה 47(ד) ו־47(ה)(5)', ({ C, ctl, say }) => {
+    const { scene, view } = C, L = 160;
+    scene.add(flat(140, L, 0x6f9c52, 0, 0, 0, { roughness: 1 }), flat(8, L, 0x3b3f47, 0, 0), flat(0.14, L, 0xffffff, -3.8, 0, 0.03), flat(0.14, L, 0xffffff, 3.8, 0, 0.03));
+    const lines = new THREE.Group(); scene.add(lines);
+    const stripe = (x, dashed) => { if (!dashed) lines.add(flat(0.16, L, 0xffffff, x, 0, 0.035)); else for (let z = -L / 2; z < L / 2; z += 6) lines.add(flat(0.16, 3, 0xffffff, x, z + 1.5, 0.035)); };
+    const M = {
+      dash: ['קו קטעים', 'קו קטעים באמצע: מותר לעקוף משמאל אם הדרך פנויה מספיק כדי לסיים בבטחה.', true, [[0, 1]]],
+      solid: ['קו רצוף', 'קו הפרדה רצוף: אסור לחצות אותו – אין עקיפה.', false, [[0, 0]]],
+      mineDash: ['קטעים בצד שלך', 'קו רצוף ולידו, בצד שלך (מימינו), קו קטעים: מותר לחצות, אם הדרך פנויה.', true, [[-0.17, 0], [0.17, 1]]],
+      theirDash: ['רצוף בצד שלך', 'קו רצוף בצד שלך וקו הקטעים בצד הנגדי: אסור לך לחצות.', false, [[-0.17, 1], [0.17, 0]]],
+    };
+    const me = makeCar(0x2a6fdb), slow = makeCar(0x8d949c); scene.add(me, slow); slow.position.set(1.8, 0, -16);
+    const l1 = label('אתה', { size: 1.3, bg: 'rgba(42,111,219,.95)' }); l1.position.set(0, 3.2, 0); me.add(l1);
+    const l2 = label('רכב איטי', { size: 1.2, bg: 'rgba(80,86,96,.95)' }); l2.position.set(0, 3.2, 0); slow.add(l2);
+    const route = new Path([{ t: 'l', a: [1.8, 14], b: [1.8, -2] }, { t: 'q', a: [1.8, -2], c: [1.8, -6], b: [-1.8, -9] }, { t: 'l', a: [-1.8, -9], b: [-1.8, -22] }, { t: 'q', a: [-1.8, -22], c: [-1.8, -25], b: [1.8, -28] }, { t: 'l', a: [1.8, -28], b: [1.8, -44] }]);
+    const ribbon = new THREE.Group(); scene.add(ribbon);
+    let key = 'dash', anim = null, eng = null, lastMark = null; const cur = { s: 0 };
+    place(me, route.at(0));
+    const draw = k => { key = k; lines.clear(); M[k][3].forEach(([x, d]) => stripe(x, !!d)); const ok = M[k][2];
+      ribbon.clear(); const pts = []; for (let s = 0; s <= route.len; s += 1) { const p = route.at(s); pts.push(new THREE.Vector3(p.x, 0.12, p.z)); }
+      ribbon.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.16, 6, false), new THREE.MeshBasicMaterial({ color: ok ? 0x2ecc71 : 0xe5483f, transparent: true, opacity: 0.85 })));
+      if (lastMark) { scene.remove(lastMark); lastMark.material.map?.dispose(); }
+      lastMark = label(ok ? '✓' : '✕', { size: 2.4, bg: ok ? 'rgba(30,140,80,.95)' : 'rgba(200,40,40,.95)' }); lastMark.position.set(0, 6, -10); scene.add(lastMark);
+      cur.s = 0; anim = null; place(me, route.at(0)); me.userData.blinkSide = null; say(`אתה נוסע ימינה בנתיב הימני, מאחורי רכב איטי. ${M[k][1]}`); };
+    const go = () => { sfx.click(); cur.s = 0; place(me, route.at(0)); const ok = M[key][2]; anim = { ok, target: ok ? route.len : 11, back: false, wait: 0 }; me.userData.blinkSide = ok ? 'L' : null; eng ||= sfx.engine(); };
+    C.onDispose(() => eng?.stop());
+    C.onFrame((dt, now) => {
+      blinkAnim(me, now); if (lastMark) lastMark.position.y = 6 + Math.sin(now * 2) * 0.2;
+      if (!anim) { if (eng) { eng.stop(); eng = null; } return; }
+      const sp = reduced() ? 999 : 9;
+      if (!anim.back) { cur.s = slowTo(cur.s, anim.target, sp, dt); eng?.set(0.5); if (cur.s >= anim.target) { if (anim.ok) { anim = null; me.userData.blinkSide = null; } else { anim.back = true; sfx.horn(); anim.wait = 0.6; } } }
+      else { if ((anim.wait -= dt) > 0) { setBrake(me, true); } else { setBrake(me, false); cur.s = slowTo(cur.s, 0, sp, dt); if (cur.s <= 0) anim = null; } }
+      place(me, route.at(cur.s));
+    });
+    const cams = { three: { yaw: 0.8, pitch: 0.5, dist: 36 }, top: { yaw: 0, pitch: 1.45, dist: 44 }, back: { yaw: 0.05, pitch: 0.28, dist: 18 } };
+    Object.assign(view, cams.three); view.target.set(0, 0, -10);
+    const sel = chipGroup(Object.keys(M).map(k => [k, M[k][0]]), 'dash', draw), goB = btn('נסה לעקוף', go, 'btn small primary');
+    const camSel = chipGroup([['three', 'מבט חצי'], ['top', 'מלמעלה'], ['back', 'מאחורי הרכב']], 'three', k => { view.goal = { ...cams[k], target: new THREE.Vector3(0, 0, -10) }; });
+    ctl.append(sel, h('div', { class: 'row tight' }, goB), camSel); draw('dash');
+  });
+}
+
+export const SCENES = { priority: priority3d, stopdist: stopdist3d, roadparts: roadparts3d, crosswalk: crosswalk3d, gap: gap3d, overtake: overtake3d };

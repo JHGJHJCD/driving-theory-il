@@ -462,7 +462,7 @@ const MODE_KEY = 'theory-il-viz-mode';
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const getMode = () => { try { return localStorage.getItem(MODE_KEY) === '2d' ? '2d' : '3d'; } catch { return '3d'; } };
 const setMode = m => { try { localStorage.setItem(MODE_KEY, m); } catch {} };
-const THREE_D = new Set(['priority', 'stopdist', 'roadparts']);
+const THREE_D = new Set(['priority', 'stopdist', 'roadparts', 'crosswalk', 'gap', 'overtake']);
 function with3d(key, make2d) {
   return o => {
     if (!webgl()) return make2d(o);
