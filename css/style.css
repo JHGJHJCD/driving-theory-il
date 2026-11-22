@@ -418,3 +418,11 @@ line.vz-span { stroke: #f3a712; stroke-width: 6; fill: none; }
 .sgmean { margin: 4px 0; overflow-wrap: anywhere; }
 .sgwhy { margin: 4px 0; }
 .sdbrowse[hidden] { display: none; }
+
+/* 3D views of the lesson diagrams (js/viz3d.js) */
+.vz3-wrap { display: grid; gap: 8px; }
+.vz3-stage { position: relative; padding: 0; overflow: hidden; }
+.vz3-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: 62vh; border-radius: 12px; touch-action: none; cursor: grab; background: linear-gradient(#bcd9f5, #e8f1fa); }
+:root[data-theme="dark"] .vz3-canvas { background: linear-gradient(#1b2740, #2a3a57); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .vz3-canvas { background: linear-gradient(#1b2740, #2a3a57); } }
+.vz3-hint { position: absolute; inset-inline-start: 10px; bottom: 6px; margin: 0; padding: 2px 8px; border-radius: 8px; background: rgba(0,0,0,.35); color: #fff; pointer-events: none; }

@@ -457,4 +457,29 @@ const leftturn = flow('פנייה שמאלה: מאיפה ולאן', TB + ', עמ
   ['לחד־סטרי', 'נכנסים לכביש חד־סטרי לנתיב השמאלי ביותר.'],
   ['לדו־סטרי', 'נכנסים לכביש דו־סטרי עם נתיב אחד בכל כיוון בקשת רחבה לצדו הימני; אם יש שני נתיבים או יותר בכיוון – לנתיב השמאלי ביותר. סימון בכביש גובר על כל אלה.']]);
 
-export const VIZ = { roadparts, leftturn, startcar, stopdist, priority, signs, speed, gap, overtake, crosswalk, parking, rail, blind, moto, signdict, duty, newdrv, accident, brakes, blowout, bac, dims, motojx, lamps, hands, load, kids, taxi, tractor };
+// ---------- 3D switch: some diagrams get a "3D" view (three.js is loaded only when it is opened) ----------
+const MODE_KEY = 'theory-il-viz-mode';
+const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
+const getMode = () => { try { return localStorage.getItem(MODE_KEY) === '2d' ? '2d' : '3d'; } catch { return '3d'; } };
+const setMode = m => { try { localStorage.setItem(MODE_KEY, m); } catch {} };
+const THREE_D = new Set(['priority', 'stopdist', 'roadparts']);
+function with3d(key, make2d) {
+  return o => {
+    if (!webgl()) return make2d(o);
+    const host = h('div', { class: 'vz3-host' }), bar = h('div', { class: 'vz3-mode row tight', role: 'group', 'aria-label': 'סוג תצוגה' });
+    let mode = getMode(), n2 = null, n3 = null;
+    const b2 = chip('דו-ממד', mode === '2d', () => show('2d')), b3 = chip('תלת-ממד', mode === '3d', () => show('3d'));
+    bar.append(b3, b2);
+    function show(m) {
+      mode = m; setMode(m); b2.setAttribute('aria-pressed', String(m === '2d')); b3.setAttribute('aria-pressed', String(m === '3d'));
+      if (m === '2d') { n2 ||= make2d(o); host.replaceChildren(n2); return; }
+      host.replaceChildren(h('p', { class: 'small muted', text: 'טוען תלת-ממד…' }));
+      import('./viz3d.js').then(mod => { if (mode !== '3d') return; host.replaceChildren(mod.SCENES[key]()); })
+        .catch(() => { host.replaceChildren(h('p', { class: 'warn-note', text: 'לא הצלחתי לטעון את התלת-ממד. מציג דו-ממד.' }), n2 ||= make2d(o)); });
+    }
+    show(mode);
+    return h('div', { class: 'vz3-wrap' }, bar, host);
+  };
+}
+const BASE = { roadparts, leftturn, startcar, stopdist, priority, signs, speed, gap, overtake, crosswalk, parking, rail, blind, moto, signdict, duty, newdrv, accident, brakes, blowout, bac, dims, motojx, lamps, hands, load, kids, taxi, tractor };
+export const VIZ = Object.fromEntries(Object.entries(BASE).map(([k, f]) => [k, THREE_D.has(k) ? with3d(k, f) : f]));

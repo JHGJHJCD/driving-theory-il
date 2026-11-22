@@ -3,6 +3,7 @@ import { t, setUi, uiLang } from './i18n.js';
 import * as st from './store.js';
 import * as bk from './backup.js';
 import * as tts from './tts.js';
+import * as sfx from './sfx.js';
 import { VERSION } from './version.js';
 import { VIZ } from './viz.js';
 import { ELIG, lawUrl } from './elig.js';
@@ -365,13 +366,14 @@ function renderQ() {
   const id = s.ids[s.i], v = view(id, s.he), order = s.order?.id === id && s.order.lang === v.lang ? s.order.o : shuffle([0, 1, 2, 3]);
   s.order = { id, lang: v.lang, o: order }; s.render = renderQ;
   const fb = h('p', { class: 'fb', role: 'status', 'aria-live': 'polite' }), whyHost = h('div', { class: 'whyhost' });
-  const next = btn(s.i + 1 < s.ids.length ? t('q.next') : t('q.finish'), () => { s.i++; s.answered = null; s.order = null; tts.stop(); if (s.badgeLater) { s.badgeLater = false; checkBadges(); } renderQ(); }, 'btn primary big next', null, { hidden: true });
+  const next = btn(s.i + 1 < s.ids.length ? t('q.next') : t('q.finish'), () => { sfx.next(); s.i++; s.answered = null; s.order = null; tts.stop(); if (s.badgeLater) { s.badgeLater = false; checkBadges(); } renderQ(); }, 'btn primary big next', null, { hidden: true });
   const answers = h('div', { class: 'answers', role: 'group', 'aria-labelledby': 'qt' }, order.map((ai, n) => h('button', { type: 'button', class: 'ans', lang: v.lang, dir: dirOf(v.lang), 'data-i': ai, onclick: () => answer(ai) },
     h('span', { class: 'ans-n', text: n + 1 }), h('span', { class: 'ans-t', text: v.a[ai] }))));
   function answer(ai) {
     if (s.answered) return;
     const ok = ai === v.c; s.answered = { ai, ok };
     st.record(id, ok); if (ok) s.ok++; else s.wrong.push(id);
+    ok ? sfx.correct() : sfx.wrong();
     paint(); if (ok) checkBadges(); else s.badgeLater = true;
   }
   function paint() {
@@ -481,6 +483,7 @@ function startTimer() {
     const el = document.getElementById('timer'); if (!exam || exam.done) return stopTimer();
     const left = Math.max(0, (exam.end - Date.now()) / 1000);
     if (el) { el.textContent = t('ex.left', mmss(left)); el.classList.toggle('low', left < 300); }
+    if (left > 0 && left <= 10) sfx.tick(); else if (Math.round(left) === 300 || Math.round(left) === 60) sfx.warn();
     if (left <= 0) { toast(t('ex.timeUp')); submitExam(); }
   }, 1000);
 }
@@ -495,7 +498,7 @@ function renderExam() {
     btn(String(n + 1), () => { e.i = n; renderExam(); }, 'gbtn' + (e.ans[qid] ? ' done' : '') + (n === e.i ? ' cur' : ''), null, { 'aria-label': t('q.of', n + 1, N), 'aria-current': n === e.i ? 'true' : null }))));
   const answers = h('div', { class: 'answers', role: 'radiogroup', 'aria-labelledby': 'qt' }, e.orders[key].map((ai, n) =>
     h('button', { type: 'button', role: 'radio', class: 'ans' + (picked === ai ? ' sel' : ''), 'aria-checked': String(picked === ai), 'data-i': ai, lang: v.lang, dir: dirOf(v.lang),
-      onclick: () => { e.ans[id] = { ai, lang: v.lang, ok: ai === v.c }; renderExam(); } }, h('span', { class: 'ans-n', text: n + 1 }), h('span', { class: 'ans-t', text: v.a[ai] }))));
+      onclick: () => { sfx.click(); e.ans[id] = { ai, lang: v.lang, ok: ai === v.c }; renderExam(); } }, h('span', { class: 'ans-n', text: n + 1 }), h('span', { class: 'ans-t', text: v.a[ai] }))));
   const unanswered = e.ids.filter(q => !e.ans[q]).length;
   screen('', h('div', { class: 'qhead' }, btn(t('q.quit'), () => { if (confirm(t('ex.leave'))) { exam = null; st.clearExam(); stopTimer(); location.hash = '#/home'; } }, 'iconbtn', 'x', { 'aria-label': t('q.quit') }),
       h('div', { class: 'qprog' }, h('span', { text: t('q.of', e.i + 1, N) }), h('div', { class: 'bar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': N, 'aria-valuenow': N - unanswered, 'aria-label': t('q.answers') }, h('i', { style: { width: (100 * (N - unanswered) / N) + '%' } }))),
@@ -517,6 +520,7 @@ function submitExam() {
   st.addExam(e.cls || cls(), score, secs, prof().lang, wrong);
   const unans = e.ids.filter(id => !e.ans[id]).length;
   const pass = score >= EXAM.pass;
+  pass ? sfx.pass() : sfx.fail();
   screen(pass ? t('ex.pass') : t('ex.fail'), pass ? confetti() : null,
     h('div', { class: 'result ' + (pass ? 'pass' : 'fail') }, ring(score / EXAM.n, 140, 12, t('ex.score', score, EXAM.n)), h('p', { class: 'big-t', text: t('ex.score', score, EXAM.n) }), h('p', { class: 'muted', text: t('ex.time', mmss(secs)) }),
       unans ? h('p', { class: 'small muted', text: t('ex.unans', unans) }) : null),
@@ -599,6 +603,11 @@ async function settings(sec) {
       field(t('set.rate'), sel('sr', [['0.8', '0.8×'], ['1', '1×'], ['1.2', '1.2×']], String(p.rate), v => upd('rate', +v))),
       h('p', { class: 'small muted', text: t('set.ttsNote') })));
   }
+  kids.push(h('section', { class: 'card', id: 'sound' }, h('h2', { text: t('set.sfx') }),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'sfx-on', checked: sfx.enabled(), onchange: e => { sfx.setEnabled(e.target.checked); if (e.target.checked) sfx.correct(); } }), h('span', { text: t('set.sfxOn') })),
+    h('div', { class: 'field' }, h('label', { for: 'sfx-vol', text: t('set.sfxVol') }),
+      h('input', { id: 'sfx-vol', type: 'range', min: 0, max: 100, value: Math.round(sfx.volume() * 100), oninput: e => sfx.setVolume(e.target.value / 100), onchange: () => sfx.click() })),
+    h('p', { class: 'small muted', text: t('set.sfxNote') })));
   // backup
   const meta = bk.getMeta(), ss = await bk.storageStatus(), af = bk.autoFileState(), undo = await bk.canUndo();
   const out = h('div', { class: 'codeout' });
