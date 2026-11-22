@@ -49,7 +49,7 @@ function core(canvas) {
   function frame(now) {
     if (dead) return;
     if (canvas.isConnected) seen = true; else if (seen || ++wait > 900) return dispose();
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (visible && canvas.clientWidth > 0) {
       const w = canvas.clientWidth, hh = canvas.clientHeight, pr = renderer.getPixelRatio();
       if (canvas.width !== Math.round(w * pr) || canvas.height !== Math.round(hh * pr)) { renderer.setSize(w, hh, false); camera.aspect = w / hh; camera.updateProjectionMatrix(); }
@@ -126,7 +126,7 @@ function priority3d() {
   return fig3('מי עובר ראשון בצומת בלי תמרור?', 'לפי תקנה 64(א)(1) ו־64(א)(2)', ({ C, ctl, say }) => {
     const { scene, view } = C;
     scene.add(flat(140, 140, 0x6f9c52, 0, 0, 0, { roughness: 1 }), flat(7, 90, 0x3b3f47, 0, 0), flat(90, 7, 0x3b3f47, 0, 0));
-    for (const [x, z] of [[-11, -11], [11, -11], [-11, 11], [11, 11]]) scene.add(box(9, 7 + Math.abs(x + z) % 5, 9, 0xd8cdb8, x, 3.5, z));
+    for (const [x, z, hgt] of [[-9.5, -9.5, 3.2], [9.5, -9.5, 4.2], [-9.5, 9.5, 3.6], [9.5, 9.5, 2.8]]) scene.add(box(8, hgt, 8, 0xd8cdb8, x, hgt / 2, z));
     for (let k = 0; k < 9; k++) { const o = 5 + k * 5; for (const s of [-1, 1]) { scene.add(flat(0.18, 2.4, 0xeeeeee, 0, s * (o + 4), 0.03), flat(2.4, 0.18, 0xeeeeee, s * (o + 4), 0, 0.03)); } }
     for (const [x, z, w, d] of [[1.8, 3.9, 3.2, 0.3], [-1.8, -3.9, 3.2, 0.3], [3.9, -1.8, 0.3, 3.2], [-3.9, 1.8, 0.3, 3.2]]) scene.add(flat(w, d, 0xffffff, x, z, 0.03));
     const me = makeCar(0x2a6fdb), other = makeCar(0xe8693a); scene.add(me, other);
