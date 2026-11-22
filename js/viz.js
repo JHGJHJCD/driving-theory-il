@@ -467,15 +467,18 @@ function with3d(key, make2d) {
   return o => {
     if (!webgl()) return make2d(o);
     const host = h('div', { class: 'vz3-host' }), bar = h('div', { class: 'vz3-mode row tight', role: 'group', 'aria-label': 'סוג תצוגה' });
-    let mode = getMode(), n2 = null, n3 = null;
+    let mode = getMode(), n2 = null, tok = 0;
+    // build the 3D scene only once the diagram is actually on screen (a closed <details> never loads WebGL)
+    const whenVisible = f => { if (!('IntersectionObserver' in window)) return f(); const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); f(); } }); io.observe(host); };
     const b2 = chip('דו-ממד', mode === '2d', () => show('2d')), b3 = chip('תלת-ממד', mode === '3d', () => show('3d'));
     bar.append(b3, b2);
     function show(m) {
-      mode = m; setMode(m); b2.setAttribute('aria-pressed', String(m === '2d')); b3.setAttribute('aria-pressed', String(m === '3d'));
+      mode = m; const my = ++tok; setMode(m); b2.setAttribute('aria-pressed', String(m === '2d')); b3.setAttribute('aria-pressed', String(m === '3d'));
       if (m === '2d') { n2 ||= make2d(o); host.replaceChildren(n2); return; }
       host.replaceChildren(h('p', { class: 'small muted', text: 'טוען תלת-ממד…' }));
-      import('./viz3d.js').then(mod => { if (mode !== '3d') return; host.replaceChildren(mod.SCENES[key]()); })
-        .catch(() => { host.replaceChildren(h('p', { class: 'warn-note', text: 'לא הצלחתי לטעון את התלת-ממד. מציג דו-ממד.' }), n2 ||= make2d(o)); });
+      whenVisible(() => { if (my !== tok) return;
+        import('./viz3d.js').then(mod => { if (my !== tok) return; host.replaceChildren(mod.SCENES[key]()); })
+          .catch(() => { if (my === tok) host.replaceChildren(h('p', { class: 'warn-note', text: 'לא הצלחתי לטעון את התלת-ממד. מציג דו-ממד.' }), n2 ||= make2d(o)); }); });
     }
     show(mode);
     return h('div', { class: 'vz3-wrap' }, bar, host);
