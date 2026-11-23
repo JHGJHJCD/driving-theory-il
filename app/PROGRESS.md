@@ -277,3 +277,10 @@ Scope (Dudi, 26.10 13:46 UTC+2): every B and A question taught from an official 
 - Known limits: models are stylized low-poly, not photoreal; children's seat/cockpit scenes are schematic; persons are chibi proportions.
 - [x] v1.25.1: electric car = supplied Model 3 (assets3d/cars/ev-m3.glb, 3.7 MB, ~90k triangles, meshopt-compressed); its own lamps drive brake/indicator/head states; built-in generic EV (js/ev3d.js) remains the fallback; licence of the model unconfirmed (see assets3d/LICENSE.txt); tools/assets3d/ev_extract.mjs + ev_finish.mjs reproduce the conversion
 - [ ] waiting for the owner's asset pack (docs/ASSET_SHOPPING_LIST.md): photoreal vehicles, people, HDRIs, textures, sounds
+
+## v1.25.3 – asset pack integrated
+- [x] vehicles from the owner's pack (Sketchfab, CC BY): 16 models in assets3d/veh (oriented by tools/assets3d via orient + glb_process: weld, decimation to <=60k triangles, 1024 WebP, meshopt); catalogue in js/kit3d.js with Kenney models as fallbacks; electric cars take turns (Model 3 / Polestar 2 / e-tron / SU7); credits in assets3d/credits.json + About page (brand-mark note)
+- [x] sounds: 14 CC0 recordings (sirens, truck horn, braking, handbrake, seatbelt, ignition, thud, bicycle bell, train pass-by, crossing bell, city/highway ambience); wired into accident, rail, startcar, brakes; the CC BY tyre-squeal sample was removed
+- [x] textures/skies: ambientCG paving + lawn, Poly Haven asphalt; HDRIs for day, dusk, night
+- [x] CI (.github/workflows/ci.yml: data checks, e2e, 5 sharded 3D jobs) and preview site (pages.yml; needs Pages enabled + variable PAGES_ENABLED=true)
+- not used from the pack: train and refuse truck (broken geometry), scooter, bicycle, decals, props, wheelchair (next), 2k HDRIs

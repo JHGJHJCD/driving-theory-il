@@ -1,0 +1,40 @@
+name: Preview site (GitHub Pages)
+# One-time setup by the repo owner: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+# Pages sites are public. The supplied Model 3 file (app/assets3d/cars/ev-m3.glb) has an unconfirmed licence and is a branded vehicle,
+# so it is NOT published unless the repository variable INCLUDE_M3 is set to "true" (Settings -> Secrets and variables -> Actions -> Variables).
+# Without it the site shows the built-in generic electric car.
+on:
+  push:
+    branches: [main, claude/serene-ptolemy-dtfzrz]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    # runs only after the owner enabled Pages (see above) and set the repository variable PAGES_ENABLED to "true"
+    if: ${{ vars.PAGES_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site folder
+        env:
+          INCLUDE_M3: ${{ vars.INCLUDE_M3 }}
+        run: |
+          mkdir _site
+          rsync -a --exclude 'tools/' --exclude 'docs/' --exclude 'PROGRESS.md' app/ _site/
+          if [ "$INCLUDE_M3" != "true" ]; then rm -f _site/assets3d/cars/ev-m3.glb; fi
+          touch _site/.nojekyll
+          du -sh _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+      - id: deployment
+        uses: actions/deploy-pages@v4

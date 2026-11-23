@@ -5,6 +5,8 @@ const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const base = process.env.BASE || 'http://127.0.0.1:8787/';
 const keys = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSync(path.join(__dirname, '../../js/scenes')).filter(f => f.endsWith('.js') && !f.startsWith('_')).map(f => f.slice(0, -3)).sort();
+const shard = (process.env.SHARD || '').match(/^(\d+)\/(\d+)$/);   // SHARD=1/4 runs every 4th scene starting at the 1st (for parallel CI jobs)
+if (shard) { const i = +shard[1] - 1, n = +shard[2]; for (let j = keys.length - 1; j >= 0; j--) if (j % n !== i) keys.splice(j, 1); }
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   let fail = 0;
@@ -17,9 +19,9 @@ const keys = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSy
       await p.waitForFunction(() => document.title === 'done', null, { timeout: 120000 });
       await p.waitForTimeout(1500);
       const info = await p.evaluate(() => { const C = window.__node._C; return { frames: C.frames, kids: (() => { let n = 0; C.scene.traverse(o => { if (o.isMesh) n++; }); return n; })(), title: window.__node.getAttribute('aria-label') }; });
-      const png = await p.locator('canvas').first().screenshot(); const seen = new Set(); for (let i = 5000; i < png.length; i += 997) seen.add(png[i] >> 3);
+      const png = await p.locator('canvas').first().screenshot({ timeout: 120000 }); const seen = new Set(); for (let i = 5000; i < png.length; i += 997) seen.add(png[i] >> 3);
       const total = await p.locator('figure button').count(); let clicked = 0;
-      for (let i = 0; i < Math.min(total, 16); i++) { const bt = p.locator('figure button').nth(i); try { if (await bt.isDisabled()) continue; await bt.click({ timeout: 20000 }); clicked++; await p.waitForTimeout(300); } catch (e) { errs.push('click ' + i + ': ' + e.message.split('\n')[0].slice(0, 80)); } }
+      for (let i = 0; i < Math.min(total, 16); i++) { const bt = p.locator('figure button').nth(i); try { if (await bt.isDisabled()) continue; await bt.evaluate(b => b.click(), null, { timeout: 120000 }); clicked++; await p.waitForTimeout(300); } catch (e) { errs.push('click ' + i + ': ' + e.message.split('\n')[0].slice(0, 80)); } }
       await p.waitForTimeout(800);
       const ok = !errs.length && info.frames > 1 && info.kids > 15 && seen.size > 12;
       if (!ok) fail++;

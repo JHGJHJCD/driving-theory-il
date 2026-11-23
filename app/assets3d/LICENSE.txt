@@ -9,10 +9,44 @@ The selection script is tools/assets3d/pack.py.
 Sounds (assets3d/audio, converted to mono OGG):
 - blink.ogg (car blinker), door-open.ogg, door-close.ogg – "Car blinker SFX" and "Car Doors SFX" by looneybits, CC0 (opengameart.org/content/car-blinker-sfx, content/cardoorsfx).
 - traffic.ogg – excerpt of "High traffic road sounds" by IgnasD, CC0 (opengameart.org/content/high-traffic-road-sounds).
-- squeal.ogg – "Car tire squeal skid loop" by audible-edge (Tom Haigh), CC BY 3.0 (opengameart.org/content/car-tire-squeal-skid-loop; creativecommons.org/licenses/by/3.0/); converted to mono OGG, level-normalised.
+- horn-truck.ogg – air horn close and loud.WAV by goose278, CC0 (https://freesound.org/s/174819/)
+- brake.ogg – Car_data_(heavy braking) by IlpoTervamäki, CC0 (https://freesound.org/s/715806/)
+- handbrake.ogg – Handbrake Engage, Disengage by microman502, CC0 (https://freesound.org/s/818295/)
+- seatbelt.ogg – Seat belt unbuckle & buckling by Caitlin_100, CC0 (https://freesound.org/s/384406/)
+- ignition.ogg – ignition turn car start.wav by greatsoundstube, CC0 (https://freesound.org/s/629313/)
+- thud.ogg – Light Impact on Concrete by Elements-Library, CC0 (https://freesound.org/s/683775/)
+- bell-bike.ogg – Bicycle_Bell_from_BikeKitchen_Augsburg_11.wav by geraldfiebig, CC0 (https://freesound.org/s/323132/)
+- siren-amb.ogg – siren ambulance european distant echo nice with steps to clean.wav by kyles, CC0 (https://freesound.org/s/451068/)
+- siren-police.ogg – Police Siren by TitanKaempfer, CC0 (https://freesound.org/s/746302/)
+- siren-fire.ogg – Fire Truck w-Siren & Air Horn.mp3 by mrrap4food, CC0 (https://freesound.org/s/619087/)
+- train.ogg – Train Pass By.wav by GreekIrish, CC0 (https://freesound.org/s/254778/)
+- crossing-bell.ogg – Railway Crossing Warning Bell / Signal by mycompasstv, CC0 (https://freesound.org/s/457125/)
+- amb-city.ogg – ambience, street, traffic, city, Moscow by AlexanderChe, CC0 (https://freesound.org/s/362948/)
+- amb-highway.ogg – Fast Traffic on the Highway by antique98, CC0 (https://freesound.org/s/160684/)
+All of the above are CC0 (converted to mono OGG, level-normalised and cut to the useful part).
 The electric motor, tyre/wind noise, pedestrian-warning hum and horn are synthesized in js/sfx.js.
 
 Textures (assets3d/tex), from Poly Haven (polyhaven.com), CC0: "Asphalt 02" by Rob Tuytel (diffuse, normal, roughness; re-encoded JPEG); HDRI "Kloofendal 48d Partly Cloudy (Pure Sky)" by Greg Zaal (original) and Jarod Guest (sky edits).
 
 Electric car (assets3d/cars/ev-m3.glb): derived from the FBX "tesla-2018-model-3" supplied by the project owner (zip file name tesla-2018-model-3.zip). Author and licence of that model are NOT yet recorded here – the owner must confirm them (and add the required credit) before the app is published. The model is a reproduction of a branded vehicle: keep it out of a public release unless the licence and trademark position are clear. The built-in generic electric car (js/ev3d.js, own code) is the fallback.
 Converted by tools/assets3d/ev_extract.mjs (exterior only, interior removed) and ev_finish.mjs (decimation, normals, textures re-attached, meshopt compression; decoder vendor/jsm/meshopt_decoder.module.js, MIT).
+
+Vehicle models in assets3d/veh (Sketchfab, CC BY 4.0 unless noted; decimated and compressed, otherwise unchanged except the orientation):
+- 2020 Audi E-Tron by lplp32 – CC-BY 4.0 – https://sketchfab.com/3d-models/2020-audi-e-tron-4602d4d118b24577881e21c63eaa5340
+- Xiaomi SU7 by Mona x Supercars – CC-BY 4.0 – https://sketchfab.com/3d-models/xiaomi-su7-ca2cda599f5341068c992c9f44551bf9
+- 2013 Suzuki WagonR by BHP3D – CC-BY 4.0 – https://sketchfab.com/3d-models/2013-suzuki-wagonr-71112627f42342099ff95b59e7532663
+- Fire Truck by codexito – CC-BY 4.0 – https://sketchfab.com/3d-models/fire-truck-e0fadd42bd3b448eaa0eb660764c170a
+- Generic Town Bus by own.guest – CC-BY 4.0 – https://sketchfab.com/3d-models/generic-town-bus-14fe03d792914d51b6c6250b393c44fd
+- Tractor by le0tard – CC-BY 4.0 – https://sketchfab.com/3d-models/tractor-278fc1e0516c401eba358d3aa2e55635
+- 2020 Polestar 2 by 007 – CC-BY 4.0 – https://sketchfab.com/3d-models/2020-polestar-2-f3b67fb9e1f149709545af79a6a438a7
+- 1989 Chevrolet Suburban by Randomness – CC-BY 4.0 – https://sketchfab.com/3d-models/1989-chevrolet-suburban-44bdb8317f0840b3bc858e606f86db6b
+- Conquer '89 Pickup - Low poly model by Daniel Zhabotinsky – CC-BY 4.0 – https://sketchfab.com/3d-models/conquer-89-pickup-low-poly-model-6c48c94be8974dc7a5932f697c0ba68f
+- CARBON MOTORS E7 TAXI (Cities Skylines) by TSB3DMODELS – CC-BY 4.0 – https://sketchfab.com/3d-models/carbon-motors-e7-taxi-cities-skylines-210f95a0ea374c4fbdd27849f8c3c7a0
+- Police car by SpatialNeglect – CC-BY 4.0 – https://sketchfab.com/3d-models/police-car-9166b13b6ae341f4bfc093edb71d74f4
+- Shvan '92 Ambulance - Low Poly model by Daniel Zhabotinsky – CC-BY 4.0 – https://sketchfab.com/3d-models/shvan-92-ambulance-low-poly-model-2856dd3c61f940909dced9a5c0379484
+- 2003 Chevrolet Express GMC Savana 2500 Cargo Van by Ddiaz Design – CC-BY 4.0 – https://sketchfab.com/3d-models/2003-chevrolet-express-gmc-savana-2500-cargo-van-ed2a0b37a01e4e51ba5b82c35d4a9dae
+- Mercedes-Benz Sprinter by Savelliy 07 – CC-BY 4.0 – https://sketchfab.com/3d-models/mercedes-benz-sprinter-152f62800be34652af0545487129ca2e
+- Box-truck by Cristian Rus – CC-BY 4.0 – https://sketchfab.com/3d-models/box-truck-b0e8788b6b774fe3a18eda1895a2b8fe
+- MAN TGX 2010 V8 – High-Detail Semi-Truck by DevPoly3D – CC-BY 4.0 – https://sketchfab.com/3d-models/man-tgx-2010-v8-high-detail-semi-truck-34ce748d9a4b4de7b035cfe5cb97f5d1
+The full list with licence links is in assets3d/credits.json and in the app's About page.
+Textures and HDRIs from Poly Haven / ambientCG are CC0 (see incoming pack manifest when added to assets3d/tex).

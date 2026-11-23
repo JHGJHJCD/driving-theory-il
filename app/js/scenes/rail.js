@@ -1,5 +1,5 @@
 // Approaching a railway crossing (TR 56(א), 117(ב), 72(א)(8), LT 130–132) – real crossing with rails, barriers, a train and the distances of the 2D diagram.
-import { THREE, fig3, chipGroup, btn, label, rng, mat, slowTo, reduced, LANE, LANE_W } from '../kit3d.js';
+import { THREE, fig3, sfx, chipGroup, btn, label, rng, mat, slowTo, reduced, LANE, LANE_W } from '../kit3d.js';
 import { h } from '../ui.js';
 
 const RAIL = 0.72;                       // the nearest rail is at z = +RAIL (traffic comes from +Z), the far one at -RAIL
@@ -65,7 +65,7 @@ export default function rail3d() {
     const camFor = k => k === 'near' ? { yaw: 0.9, pitch: 0.55, dist: 44, target: new THREE.Vector3(1, 0, 8) } : { yaw: 1.05, pitch: 0.4, dist: 250, target: new THREE.Vector3(1, 0, 150) };
     const run = k => { drop(made); made = []; build(k); view.driver = null; view.clampX = k === 'far' ? null : RW + PAVE + 3.5; view.goal = camFor(k); say(V[k][1]); };
     // a train passes: lamps flash, arms come down, the train crosses, arms go up
-    const go = () => { seq = { t: 0 }; train.position.x = -90; train.visible = true; };
+    const go = () => { seq = { t: 0 }; train.position.x = -90; train.visible = true; sfx.crossingBell(); setTimeout(() => sfx.train(), 3000); };
     const goB = btn('רכבת עוברת', go, 'btn small primary');
     C.onFrame((dt, now) => {
       const o = 0.4 + 0.2 * Math.sin(now * 3); for (const z of pulse) z.material.opacity = o;

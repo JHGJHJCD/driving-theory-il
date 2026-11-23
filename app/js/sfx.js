@@ -73,7 +73,21 @@ function play(name, { gain = 0.6, rate = 1, at = 0, loop = false, fade = 0.03, d
     src.connect(g); g.connect(master); src.start(t0); if (dur) src.stop(t0 + dur + 0.05); });
   return { stop() { dead = true; if (g) { try { g.gain.setTargetAtTime(0.0001, ac().currentTime, 0.05); src.stop(ac().currentTime + 0.3); } catch {} } } };
 }
-export function preload() { for (const n of ['blink', 'door-close', 'door-open', 'squeal', 'traffic']) sample(n); }
+export function preload() { for (const n of ['blink', 'door-close', 'door-open', 'brake', 'traffic']) sample(n); }
+
+
+// more real recordings (assets3d/audio, CC0): each returns a handle with stop() so a scene can cut it short
+const keep = h => { if (!h) return { stop() {} }; live.add(h); const st = h.stop; h.stop = () => { st(); live.delete(h); }; return h; };
+export const thud = () => play('thud', { gain: 0.9 });
+export const handbrake = () => play('handbrake', { gain: 0.8 });
+export const seatbelt = () => play('seatbelt', { gain: 0.7 });
+export const ignition = () => keep(play('ignition', { gain: 0.7 }));
+export const bikeBell = () => play('bell-bike', { gain: 0.8 });
+export const hornTruck = () => play('horn-truck', { gain: 0.8 });
+export const siren = (kind = 'amb') => keep(play('siren-' + (['amb', 'police', 'fire'].includes(kind) ? kind : 'amb'), { gain: 0.35, fade: 0.2 }));   // 'amb' | 'police' | 'fire', about 9 s
+export const crossingBell = () => keep(play('crossing-bell', { gain: 0.5, fade: 0.1 }));
+export const train = () => keep(play('train', { gain: 0.7, fade: 0.3 }));
+export const ambienceOf = (kind = 'city', gain = 0.3) => keep(play('amb-' + (kind === 'highway' ? 'highway' : 'city'), { gain, loop: true, fade: 0.8 }));
 
 // horn: two sawtooth voices (about 400 and 500 Hz, as a car horn pair) through a low-pass, with a short attack
 export function horn() {
@@ -82,8 +96,8 @@ export function horn() {
   for (const fr of [398, 503, 402, 507]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = fr; o.connect(f); o.start(t0); o.stop(t0 + 0.6); }
   f.connect(g); g.connect(master);
 }
-// braking: a real tyre squeal recording, rising in pitch as the car slows, plus a short low rumble
-export function brake() { const h = play('squeal', { gain: 0.5, rate: 0.9, loop: true, dur: 0.95, fade: 0.08 }); if (!h) return; noise(0, 0.9, 0.12, 120, 900); if (!bufs.get('squeal')) { noise(0, 0.7, 0.2, 2200, 5200); } }
+// braking: a real car-braking recording (CC0), plus a short low rumble
+export function brake() { const h = play('brake', { gain: 0.75, dur: 1.9, fade: 0.05 }); noise(0, 0.9, 0.1, 120, 900); if (!h || !bufs.get('brake')) { noise(0, 0.7, 0.2, 2200, 5200); tone('sawtooth', [900, 380], 0, 0.6, 0.03); } }
 export function door(open = false) { play(open ? 'door-open' : 'door-close', { gain: 0.8 }); }
 export function ambience(gain = 0.35) { const h = play('traffic', { gain, loop: true, fade: 0.6 }); if (!h) return { stop() {} }; live.add(h); const stop = h.stop; h.stop = () => { stop(); live.delete(h); }; return h; }
 export function beep() { tone('sine', 1000, 0, 0.12, 0.14); }

@@ -1,0 +1,19 @@
+<!doctype html><meta charset=utf-8><body style="margin:0"><canvas id=c style="width:1500px;height:900px;display:block"></canvas>
+<script type=module>
+import { core, world, loadModel, label, THREE } from '../../js/kit3d.js';
+const q = new URL(location).searchParams, names = (q.get('m') || '').split(',').filter(Boolean), dir = q.get('dir') || 'veh';
+const C = core(document.getElementById('c')); const W = world(C); W.env({ ground: 'dirt', size: 200, shadowSize: 60, fog: false });
+const info = {}; let i = 0; const cols = +(q.get('cols') ?? 6);
+for (const n of names) {
+  let gl; try { gl = await loadModel(dir + '/' + n); } catch (e) { info[n] = { error: String(e).slice(0, 80) }; continue; } const m = gl.scene.clone(true); const b = new THREE.Box3().setFromObject(m), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+  info[n] = { size: sz.toArray().map(v => +v.toFixed(2)), min: b.min.toArray().map(v => +v.toFixed(2)) };
+  const long = Math.max(sz.x, sz.z), s = 6 / long; const g = new THREE.Group(); m.position.set(-c.x, -b.min.y, -c.z); g.add(m); g.scale.setScalar(s);
+  g.position.set((i % cols) * 9, 0, Math.floor(i / cols) * 9); C.scene.add(g);
+  const l = label(n.replace('_01', '').replace('car_', ''), { size: 0.9 }); l.position.set(g.position.x, 3.6, g.position.z); C.scene.add(l);
+  const mk = (z, col) => { const a = new THREE.Mesh(new THREE.ConeGeometry(.2, .6, 8), new THREE.MeshBasicMaterial({ color: col })); a.position.set(g.position.x, 0.3, g.position.z + z); a.rotation.x = z < 0 ? -Math.PI / 2 : Math.PI / 2; C.scene.add(a); };
+  mk(-3.6, 0x00cc44); mk(3.6, 0xdd2222);   // green cone = -Z end (our "front" convention), red = +Z end
+  i++;
+}
+C.view.target.set(((cols - 1) * 9) / 2, 0, 0); C.view.yaw = +(q.get('yaw') ?? 0); C.view.pitch = +(q.get('p') ?? 0.9); C.view.dist = +(q.get('d') ?? 48); C.view.min = 5; C.view.max = 200;
+setTimeout(() => { window.__info = info; document.title = 'done'; }, 6000);
+</script>
