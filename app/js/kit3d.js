@@ -140,14 +140,31 @@ export function loadModel(path) {
 // vehicle catalogue: file, real-world size (the model is scaled to this length and squeezed to this width; wheels keep their roundness),
 // rot = turn that makes the model's front point to -Z, seats: eye position of the driver (local, front = -Z)
 export const VEHICLES = {
-  sedan: { f: 'cars/sedan', L: 4.3, W: 1.85, rot: Math.PI }, sports: { f: 'cars/sedan-sports', L: 4.4, W: 1.85, rot: Math.PI }, hatch: { f: 'cars/hatchback-sports', L: 4.0, W: 1.8, rot: Math.PI },
-  suv: { f: 'cars/suv', L: 4.6, W: 1.95, rot: Math.PI }, suvlux: { f: 'cars/suv-luxury', L: 4.8, W: 1.95, rot: Math.PI }, van: { f: 'cars/van', L: 4.8, W: 1.95, rot: Math.PI },
+  etron: { f: 'veh/car_ev_suv_01', L: 4.9, W: 2.0, rot: 0, lamps: { brake: /M5_RedLamp/, head: /M5_WhiteLight/ } },
+  su7: { f: 'veh/car_ev_saloon_01', L: 5.0, W: 2.0, rot: 0 },
+  polestar: { f: 'veh/car_ev_saloon_02', L: 4.6, W: 1.9, rot: Math.PI, lamps: { brake: /red_glass/ } },
+  hatch: { f: 'veh/car_hatch_01', L: 3.65, W: 1.74, rot: 0, lamps: { brake: /taillights/, head: /headlights/ }, fb: 'k:hatch' },
+  suv: { f: 'veh/car_suv_01', L: 4.9, W: 2.0, rot: 0, fb: 'k:suv' },
+  pickup: { f: 'veh/car_pickup_01', L: 5.2, W: 2.0, rot: 0, fb: 'k:pickup' },
+  taxi: { f: 'veh/car_taxi_01', L: 4.9, W: 1.95, rot: 0, fb: 'k:taxi' },
+  police: { f: 'veh/car_police_01', L: 5.2, W: 1.9, rot: Math.PI, lamps: { brake: /^brake$/ }, fb: 'k:police' },
+  ambulance: { f: 'veh/car_ambulance_01', L: 5.6, W: 2.4, rot: 0, fb: 'k:ambulance' },
+  van: { f: 'veh/van_minibus_01', L: 5.6, W: 2.1, rot: Math.PI, fb: 'k:van' },
+  delivery: { f: 'veh/van_delivery_01', L: 5.9, W: 2.2, rot: 0, fb: 'k:delivery' },
+  lorry: { f: 'veh/truck_box_01', L: 7.2, W: 2.4, rot: Math.PI, fb: 'k:lorry' },
+  semi: { f: 'veh/truck_semi_01', L: 6.4, W: 2.55, rot: 0, lamps: { brake: /Red_Light_Back/, head: /White_Light/ } },
+  firetruck: { f: 'veh/truck_fire_01', L: 9.0, W: 2.5, rot: 0, fb: 'k:firetruck' },
+  bus: { f: 'veh/bus_city_01', L: 11.8, W: 2.55, rot: 0 },
+  tractor: { f: 'veh/tractor_01', L: 3.9, W: 2.66, rot: 0, fb: 'k:tractor' },
+  sedan: { f: 'cars/sedan', L: 4.3, W: 1.85, rot: Math.PI }, sports: { f: 'cars/sedan-sports', L: 4.4, W: 1.85, rot: Math.PI }, 'k:hatch': { f: 'cars/hatchback-sports', L: 4.0, W: 1.8, rot: Math.PI },
+  'k:suv': { f: 'cars/suv', L: 4.6, W: 1.95, rot: Math.PI }, suvlux: { f: 'cars/suv-luxury', L: 4.8, W: 1.95, rot: Math.PI }, 'k:van': { f: 'cars/van', L: 4.8, W: 1.95, rot: Math.PI },
   evm3: { f: 'cars/ev-m3', L: 4.69, W: 2.1, rot: 0, paint: 'paint', ownLamps: true, fallback: true },
-  taxi: { f: 'cars/taxi', L: 4.5, W: 1.85, rot: Math.PI }, police: { f: 'cars/police', L: 5.0, W: 1.9, rot: Math.PI }, ambulance: { f: 'cars/ambulance', L: 5.6, W: 2.0, rot: Math.PI },
-  firetruck: { f: 'cars/firetruck', L: 8.0, W: 2.5, rot: Math.PI }, delivery: { f: 'cars/delivery', L: 6.4, W: 2.2, rot: Math.PI }, pickup: { f: 'cars/truck', L: 5.0, W: 1.95, rot: Math.PI },
-  lorry: { f: 'cars/garbage-truck', L: 8.5, W: 2.5, rot: Math.PI }, tractor: { f: 'cars/tractor', L: 3.6, W: 1.9, rot: Math.PI },
+  'k:taxi': { f: 'cars/taxi', L: 4.5, W: 1.85, rot: Math.PI }, 'k:police': { f: 'cars/police', L: 5.0, W: 1.9, rot: Math.PI }, 'k:ambulance': { f: 'cars/ambulance', L: 5.6, W: 2.0, rot: Math.PI },
+  'k:firetruck': { f: 'cars/firetruck', L: 8.0, W: 2.5, rot: Math.PI }, 'k:delivery': { f: 'cars/delivery', L: 6.4, W: 2.2, rot: Math.PI }, 'k:pickup': { f: 'cars/truck', L: 5.0, W: 1.95, rot: Math.PI },
+  'k:lorry': { f: 'cars/garbage-truck', L: 8.5, W: 2.5, rot: Math.PI }, 'k:tractor': { f: 'cars/tractor', L: 3.6, W: 1.9, rot: Math.PI },
   train: { f: 'rail/train-electric-city-a', L: 14, W: 3.0, rot: Math.PI }, loco: { f: 'rail/train-locomotive-a', L: 14, W: 3.0, rot: Math.PI },
 };
+const EV_MODELS = ['evm3', 'polestar', 'etron', 'su7'];
 const EV_PAINT = [0x6c7077, 0xe9ecef, 0x2b4a8c, 0xb3262e, 0x1c1e22, 0x9aa3ad]; let evCount = 0;   // electric cars get different paint in turn
 const PEOPLE = ['character-male-a', 'character-male-b', 'character-male-c', 'character-male-d', 'character-male-e', 'character-male-f', 'character-female-a', 'character-female-b', 'character-female-c', 'character-female-d', 'character-female-e', 'character-female-f'];
 
@@ -254,12 +271,12 @@ export function world(C) {
 
     // ---------- vehicles
     vehicle(key, { name, tint, night = false } = {}) {
-      if (key === 'bus' || key === 'schoolbus') return W.bus({ school: key === 'schoolbus', color: tint, name });
-      if (key === 'ev' || key === 'evsedan') key = 'evm3';       // the electric car model (js/ev3d.js is the fallback if it cannot be loaded)
-      if (key === 'evm3') tint = tint ?? EV_PAINT[evCount++ % EV_PAINT.length];
+      if (key === 'schoolbus') return W.bus({ school: key === 'schoolbus', color: tint, name });
+      if (key === 'ev' || key === 'evsedan') { const pick = EV_MODELS[evCount % EV_MODELS.length]; key = pick; if (key === 'evm3') tint = tint ?? EV_PAINT[Math.floor(evCount / EV_MODELS.length) % EV_PAINT.length]; evCount++; }   // electric cars take turns; js/ev3d.js is the fallback
       const spec = VEHICLES[key] || VEHICLES.sedan, g = new THREE.Group(); g.name = name || key; g.userData = { key, brake: [], blink: { L: [], R: [] }, head: [], blinkSide: null, eye: [-0.5, 1.4, -spec.L * 0.18], dims: { L: spec.L, W: spec.W, H: 1.6 }, wheels: [] };
       const inner = new THREE.Group(); g.add(inner);
-      const p = loadModel(spec.f).then(gl => {
+      const tryLoad = async () => { for (const sp of [spec, ...(spec.fb ? [VEHICLES[spec.fb]] : [])]) { try { return [sp, await loadModel(sp.f)]; } catch {} } throw new Error('model'); };
+      const p = tryLoad().then(([spec, gl]) => {
         const m = gl.scene.clone(true); const b = new THREE.Box3().setFromObject(m), sz = b.getSize(new THREE.Vector3());
         const rotated = Math.abs(Math.sin(spec.rot)) > 0.5;                       // length is along X in the file
         const len = rotated ? sz.x : sz.z, wid = rotated ? sz.z : sz.x, s = spec.L / len, sx = spec.W / wid;   // sx: width squeeze, in the file's width axis
@@ -268,6 +285,8 @@ export function world(C) {
         // cars of the same file get different colours through a light tint on the body material only
         const H = sz.y * s; g.userData.dims.H = H; g.userData.eye = [-spec.W * 0.25, H * 0.95, -spec.L * 0.42];     // bonnet view: just behind the nose, so the (opaque) cabin never fills the picture
         if (spec.paint) wrap.traverse(o => { if (!o.isMesh) return; if (o.material.name === spec.paint) { const c = new THREE.MeshPhysicalMaterial({ color: tint || 0xdddddd, metalness: 0.6, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.3 }); c.name = spec.paint; o.material = c; } else { const m = o.material = o.material.clone(); m.userData = {}; m.envMapIntensity = 0.9;
+          if (spec.lamps) { const n = m.name, on = (list, col, ei) => { m.emissive = new THREE.Color(col); m.emissiveIntensity = ei; list.push(m); };
+            if (spec.lamps.brake?.test(n)) on(g.userData.brake, 0xff1a1a, 0.1); else if (spec.lamps.head?.test(n)) on(g.userData.head, 0xfff2d0, night ? 2.2 : 0.2); }
           if (spec.ownLamps) {                       // the model's own lights are driven through their material's emissive colour
             const n = m.name, on = (list, col, ei) => { m.emissive = new THREE.Color(col); m.emissiveIntensity = ei; list.push(m); };
             if (/rear light|breaklight|pantulan/i.test(n)) on(g.userData.brake, 0xff1a1a, 0.1); else if (/front light/i.test(n)) on(g.userData.head, 0xfff2d0, night ? 2.2 : 0.2);
@@ -275,12 +294,13 @@ export function world(C) {
         else if (tint) wrap.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData = {}; o.material.color.set(tint); } });
         shadows(outer);
         if (spec.ownLamps) return;
+        const needBrake = !g.userData.brake.length, needHead = !g.userData.head.length;
         const mk = (c, em, ei) => new THREE.MeshStandardMaterial({ color: c, emissive: em, emissiveIntensity: ei, roughness: .4 });
-        const zr = spec.L / 2 + 0.015, zy = spec.lampY ?? Math.max(0.5, H * 0.27), zyH = spec.headY ?? zy, xs = spec.lampX ?? spec.W * 0.33;
+        const zr = spec.L / 2 + 0.015, zy = spec.lampY ?? Math.max(0.5, H * 0.38), zyH = spec.headY ?? zy, xs = spec.lampX ?? spec.W * 0.33;
         const add = (mm, x, z, sw, sh, yy = zy) => { const q = new THREE.Mesh(new THREE.BoxGeometry(sw, sh, 0.06), mm); q.position.set(x, yy, z); inner.add(q); return q; };
-        for (const sgn of [-1, 1]) { const bm = mk(0x7a1010, 0xff1a1a, 0.1); add(bm, sgn * xs, zr, 0.36, 0.14); g.userData.brake.push(bm); }
-        for (const sgn of [-1, 1]) { const hm = mk(0xfff6cf, 0xfff2b0, night ? 2.2 : 0.25); add(hm, sgn * xs, -zr, 0.34, 0.12, zyH); g.userData.head.push(hm); }
-        for (const [side, sgn] of [['L', -1], ['R', 1]]) for (const zz of [-zr, zr]) { const bm = mk(0x6a4300, 0xffa000, 0); add(bm, sgn * (spec.W / 2 - 0.1), zz, 0.2, 0.14); g.userData.blink[side].push(bm); }
+        if (needBrake) for (const sgn of [-1, 1]) { const bm = mk(0x7a1010, 0xff1a1a, 0.1); add(bm, sgn * xs, zr - 0.05, 0.3, 0.1); g.userData.brake.push(bm); }
+        if (needHead) for (const sgn of [-1, 1]) { const hm = mk(0xfff6cf, 0xfff2b0, night ? 2.2 : 0.25); add(hm, sgn * xs, -zr + 0.05, 0.3, 0.1, zyH); g.userData.head.push(hm); }
+        for (const [side, sgn] of [['L', -1], ['R', 1]]) for (const zz of [-zr, zr]) { const bm = mk(0x6a4300, 0xffa000, 0); add(bm, sgn * (spec.W / 2 - 0.12), zz - Math.sign(zz) * 0.05, 0.16, 0.09); g.userData.blink[side].push(bm); }
       }).catch(() => {                                                            // fallback: the built-in electric car, or a simple box car, so the scene still works
         if (spec.fallback) { const e = buildEV({ color: tint ?? 0x6c7077 }); Object.assign(g.userData, { brake: e.userData.brake, head: e.userData.head, blink: e.userData.blink, eye: e.userData.eye, dims: e.userData.dims }); inner.add(e); return; }
         const body = new THREE.Mesh(new THREE.BoxGeometry(spec.W, 1.0, spec.L), stdMat(tint || 0x4a7fd0, { roughness: .5 })); body.position.y = 0.8; inner.add(shadows(body)); });
