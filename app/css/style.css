@@ -432,3 +432,9 @@ line.vz-span { stroke: #f3a712; stroke-width: 6; fill: none; }
 .vz3-hint { position: absolute; inset-inline-start: 10px; bottom: 6px; margin: 0; padding: 2px 8px; border-radius: 8px; background: rgba(0,0,0,.35); color: #fff; pointer-events: none; }
 
 .credits summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+
+.vz3-quiz { margin-top: 8px; }
+.vz3-quiz .stack { display: grid; gap: 8px; margin: 8px 0; }
+.vz3-quiz .answer { display: block; width: 100%; min-height: 48px; text-align: start; white-space: normal; }
+.vz3-quiz .answer.ok { border-color: #1b8a4b; background: rgba(27,138,75,.12); }
+.vz3-quiz .answer.bad { border-color: #c0392b; background: rgba(192,57,43,.12); }
