@@ -1,0 +1,11 @@
+<!doctype html><meta charset=utf-8><body style="margin:0"><canvas id=c width=1200 height=500></canvas>
+<script type=module>
+import * as THREE from '../../vendor/three.module.min.js';
+import { GLTFLoader } from '../../vendor/jsm/GLTFLoader.js';
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true }); r.setSize(1200, 500, false);
+const s = new THREE.Scene(); s.background = new THREE.Color(0x9fb7cc); s.add(new THREE.HemisphereLight(0xffffff, 0x667766, 1.8)); const d = new THREE.DirectionalLight(0xffffff, 1.2); d.position.set(3, 6, 8); s.add(d);
+const L = new GLTFLoader(); const gl = await L.loadAsync('../../assets3d/cars/police.glb'); s.add(gl.scene);
+const cam = new THREE.PerspectiveCamera(35, 1200 / 500, .1, 100);
+cam.position.set(5, 3, 7); cam.lookAt(0, .6, 0); r.setViewport(0, 0, 600, 500); r.setScissor(0, 0, 600, 500); r.setScissorTest(true); r.render(s, cam);
+cam.position.set(-5, 3, -7); cam.lookAt(0, .6, 0); r.setViewport(600, 0, 600, 500); r.setScissor(600, 0, 600, 500); r.render(s, cam); document.title = 'done'; window.__info = {};
+</script>

@@ -114,10 +114,12 @@ shown with its source title, publisher, URL and access date) and never copy page
 - **Wikisource excerpts** (the law-text excerpts in `data/sources.json`, kinds TR/TO): the legislation itself has no copyright (§6), but the Wikisource transcription is **CC BY-SA 4.0** (https://creativecommons.org/licenses/by-sa/4.0/) and **stays CC BY-SA** when this repository is reused, even though the repo is MIT. Attribution: he.wikisource.org contributors, revisions 3085628 (TR) and 3085764 (TO).
 - **Excerpts from official pages and booklets** (kind `OFF`, including the textbook, edu18 and kids.gov.il): not CC BY and not MIT; quoted under fair use / reasonable quotation subject to each publisher's terms above. Reusers must make their own fair-use assessment.
 
+- **3D models** (`assets3d/`): Kenney Car Kit, City Kit (Roads, Suburban, Commercial), Mini Characters and Train Kit – **CC0 1.0** (public domain), from opengameart.org; the bus, the motorcycle, the roads, markings, signs and traffic lights are drawn in `js/kit3d.js` (MIT). See `assets3d/LICENSE.txt`. three.js (`vendor/`): MIT.
+
 **CC BY version caveat.** data.gov.il marks the banks "Creative Commons Attribution" (`cc-by`) without stating a version. We link CC BY 4.0, the current version, and follow its attribution and change-notice terms; the portal does not say which version it intends.
 
 
-Lesson diagrams (`js/viz.js`) are drawn locally in SVG; their numbers come only from the cited sections. Fines and penalty points are not shown (no citable source was recorded).
+Lesson diagrams (`js/viz.js`, and the 3D scenes in `js/scenes/` that mirror them) are drawn locally; their numbers come only from the cited sections. Fines and penalty points are not shown (no citable source was recorded).
 Wikisource may lag recent amendments – always check the current official text.
 
 This project is **not an official product** and is not endorsed by the Ministry. Verify against official sources.

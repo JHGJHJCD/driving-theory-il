@@ -1,0 +1,10 @@
+<!doctype html><html lang=he dir=rtl><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><link rel=stylesheet href="../../css/style.css">
+<body style="margin:0;padding:8px"><div id=host style="max-width:1100px;margin:auto"></div>
+<script type=module>
+import { SCENES } from '../../js/viz3d.js';
+const k = new URL(location).searchParams.get('k') || 'crosswalk';
+const node = await SCENES[k]();
+document.getElementById('host').append(node);
+const wait = () => node.dataset.ready ? (window.__ready = true, document.title = 'done') : setTimeout(wait, 100); wait();
+window.__node = node;
+</script>

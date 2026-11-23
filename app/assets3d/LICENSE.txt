@@ -1,0 +1,7 @@
+3D models used by the lesson scenes (all CC0 / public domain – no attribution required, given here anyway):
+
+- Car Kit 3.1, City Kit Roads 2.2, City Kit Suburban 2.0, City Kit Commercial 2.1, Mini Characters 2.0, Train Kit – by Kenney (kenney.nl), CC0 1.0.
+  Downloaded from opengameart.org (content/car-kit, city-kit-roads, city-kit-suburban, city-kit-commercial, mini-characters, train-kit).
+
+Roads, markings, signs, traffic lights, the bus and the motorcycle are built in js/kit3d.js (own code, MIT).
+The selection script is tools/assets3d/pack.py.

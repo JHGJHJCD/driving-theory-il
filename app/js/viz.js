@@ -462,7 +462,7 @@ const MODE_KEY = 'theory-il-viz-mode';
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const getMode = () => { try { return localStorage.getItem(MODE_KEY) === '2d' ? '2d' : '3d'; } catch { return '3d'; } };
 const setMode = m => { try { localStorage.setItem(MODE_KEY, m); } catch {} };
-const THREE_D = new Set(['priority', 'stopdist', 'roadparts', 'crosswalk', 'gap', 'overtake']);
+const THREE_D = new Set(['priority', 'stopdist', 'roadparts', 'crosswalk', 'gap', 'overtake', 'leftturn', 'speed', 'parking', 'rail', 'blind', 'moto', 'startcar', 'accident', 'brakes', 'blowout', 'motojx', 'lamps', 'hands', 'load', 'kids', 'taxi', 'tractor', 'duty', 'dims']);
 function with3d(key, make2d) {
   return o => {
     if (!webgl()) return make2d(o);
@@ -477,7 +477,7 @@ function with3d(key, make2d) {
       if (m === '2d') { n2 ||= make2d(o); host.replaceChildren(n2); return; }
       host.replaceChildren(h('p', { class: 'small muted', text: 'טוען תלת-ממד…' }));
       whenVisible(() => { if (my !== tok) return;
-        import('./viz3d.js').then(mod => { if (my !== tok) return; host.replaceChildren(mod.SCENES[key]()); })
+        import('./viz3d.js').then(mod => mod.SCENES[key]()).then(node => { if (my !== tok) return; host.replaceChildren(node); })
           .catch(() => { if (my === tok) host.replaceChildren(h('p', { class: 'warn-note', text: 'לא הצלחתי לטעון את התלת-ממד. מציג דו-ממד.' }), n2 ||= make2d(o)); }); });
     }
     show(mode);
