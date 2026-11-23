@@ -37,6 +37,7 @@ async function run(prof, opts) {
   const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   const ctx = await b.newContext({ ...opts, acceptDownloads: true, serviceWorkers: 'allow' });
   await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(BASE).origin });
+  await ctx.addInitScript(() => { try { if (!localStorage.getItem('theory-il-viz-mode')) localStorage.setItem('theory-il-viz-mode', '2d'); } catch {} });   // v1.25: the 2D diagrams are what these flows test; the 3D scenes have their own test (scenes3d.js)
   const p = await ctx.newPage();
   const errs = [], foreign = [];
   p.on('pageerror', e => errs.push(e.message));
