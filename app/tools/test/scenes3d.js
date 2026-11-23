@@ -19,7 +19,7 @@ if (shard) { const i = +shard[1] - 1, n = +shard[2]; for (let j = keys.length - 
       await p.waitForFunction(() => document.title === 'done', null, { timeout: 120000 });
       await p.waitForTimeout(1500);
       const info = await p.evaluate(() => { const C = window.__node._C; return { frames: C.frames, kids: (() => { let n = 0; C.scene.traverse(o => { if (o.isMesh) n++; }); return n; })(), title: window.__node.getAttribute('aria-label') }; });
-      const png = await p.locator('canvas').first().screenshot(); const seen = new Set(); for (let i = 5000; i < png.length; i += 997) seen.add(png[i] >> 3);
+      const png = await p.locator('canvas').first().screenshot({ timeout: 120000 }); const seen = new Set(); for (let i = 5000; i < png.length; i += 997) seen.add(png[i] >> 3);
       const total = await p.locator('figure button').count(); let clicked = 0;
       for (let i = 0; i < Math.min(total, 16); i++) { const bt = p.locator('figure button').nth(i); try { if (await bt.isDisabled()) continue; await bt.click({ timeout: 20000 }); clicked++; await p.waitForTimeout(300); } catch (e) { errs.push('click ' + i + ': ' + e.message.split('\n')[0].slice(0, 80)); } }
       await p.waitForTimeout(800);
