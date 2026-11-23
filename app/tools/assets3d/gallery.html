@@ -1,0 +1,17 @@
+<!doctype html><meta charset=utf-8><body style="margin:0"><canvas id=c style="width:1400px;height:900px;display:block"></canvas>
+<script type=module>
+import { core, world, THREE, Path } from '../../js/kit3d.js';
+const C = core(document.getElementById('c')); const W = world(C); W.env({ ground: 'grass', size: 100, shadowSize: 60 });
+W.asphalt(0, 0, 100, 14); W.line(-6, -50, 50); W.line(6, -50, 50);
+const keys = ['ev','ev','ev','ev','hatch','suv','pickup','taxi','police','ambulance','van','delivery','lorry','semi','firetruck','bus','tractor'];
+let x = -46; for (const k of keys) { const v = W.vehicle(k); v.position.set(x, 0, k === 'bus' || k === 'schoolbus' ? 2 : -2); v.rotation.y = -Math.PI / 2; C.scene.add(v); x += (k === 'bus' ? 13 : k === 'firetruck' || k === 'lorry' || k === 'semi' ? 10 : 6.5); }
+const m = W.moto(); const e2 = W.vehicle('ev', { tint: 0xe9ecef }); e2.position.set(-46, 0, -9); e2.rotation.y = -Math.PI / 2; C.scene.add(e2); const e3 = W.vehicle('evsedan', { tint: 0xb3262e }); e3.position.set(-40, 0, -9); e3.rotation.y = -Math.PI / 2; C.scene.add(e3); const e4 = W.vehicle('ev', { tint: 0x2b4a8c }); e4.position.set(-34, 0, -9); e4.rotation.y = -Math.PI / 4; C.scene.add(e4);  m.position.set(-46, 0, 8); m.rotation.y = -Math.PI / 2; C.scene.add(m);
+const m2 = W.moto({ rider: false, color: 0x2563c9 }); m2.position.set(-42, 0, 8); m2.rotation.y = -Math.PI / 2; C.scene.add(m2);
+for (let i = 0; i < 6; i++) { const p = W.person(i, { anim: i % 2 ? 'walk' : 'idle' }); p.position.set(-36 + i * 2, 0, 9); C.scene.add(p); }
+['stop','yield','speed','crossing','nopass','noparking','nostop','rail','school','priority'].forEach((k, i) => W.sign(k, { x: -20 + i * 2.6, z: 9, n: 50, size: 1.2, ry: 0.0 }));
+const tl = W.trafficLight({ x: 10, z: 9, state: 'red' }); const tl2 = W.trafficLight({ x: 13, z: 9, state: 'green' });
+W.prop('rail/train-electric-city-a', { scale: 3, x: 20, z: 10, ry: 0 }); W.prop('rail/train-locomotive-a', { scale: 3, x: 26, z: 10, ry: 0 });
+W.prop('cars/cone', { scale: 1.5, x: 30, z: 8 }); W.prop('roads/construction-barrier', { scale: 9, x: 34, z: 8 });
+const q = new URL(location).searchParams; C.view.target.set(+(q.get('cx') ?? -14), 0, 2); C.view.yaw = +(q.get('yaw') ?? 0.15); C.view.pitch = 0.42; C.view.dist = +(q.get('d') ?? 62);
+W.whenReady(() => setTimeout(() => { document.title = 'done'; }, 3000)); window.__info = {};
+</script>

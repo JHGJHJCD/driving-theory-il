@@ -1,0 +1,27 @@
+﻿item,source_url,reason
+"Kenney assets (vehicles, props, characters)",https://kenney.nl/assets,Blocked by NetFree (HTTP 418) on this machine; CC0 content exists there
+"Quaternius packs (characters, nature, city)",https://quaternius.com,Blocked by NetFree (HTTP 418); no non-blocked official mirror found
+Poly Pizza models,https://poly.pizza,Blocked by NetFree (HTTP 418)
+OpenGameArt sounds/models,https://opengameart.org,Blocked by NetFree (HTTP 418)
+Freesound .ogg/.wav downloads,https://freesound.org,ogg previews blocked by NetFree (418); original WAV needs user login; used HQ mp3 previews instead (format deviates from spec)
+"Sketchfab models (all vehicles, people, train, buildings, trees, traffic props)",https://sketchfab.com,Download needs a logged-in account; Sketchfab now uses Epic Games sign-in and the user's Google account is not linked. Candidates were searched but nothing downloaded yet
+Poly Haven modular_urban_apartments_facade,https://polyhaven.com/a/modular_urban_apartments_facade,"16.5MB at 1k, exceeds 5MB limit for non-vehicle models (CC0, could be added if size limit is relaxed)"
+Poly Haven modular_electricity_poles,https://polyhaven.com/a/modular_electricity_poles,"12.4MB, exceeds 5MB limit (CC0)"
+Sketchfab models under CC-BY-SA / CC-BY-NC / editorial,https://sketchfab.com,Not allowed licenses; excluded by search filter (only license=cc0 and license=by queried)
+"Israeli road-marking decals: stop line, give-way triangle",https://ambientcg.com,"No matching CC0 decal found; ambientCG RoadLines decals are yellow (US style) with alpha, can be tinted white; zebra/solid lines supplied (RoadLines001/003/004 are white)"
+EV low-speed warning hum (AVAS) sound,https://freesound.org,No CC0/CC-BY result with 5-30s duration found
+"Palm, olive, cypress, ficus trees",https://polyhaven.com,"Poly Haven has no suitable palm/olive/cypress/ficus under 5MB (jacaranda 214MB, island_tree 66MB); needs Sketchfab"
+Volvo EX30 - Free Low poly (LagzDesign),https://sketchfab.com,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed. EV SUV slot is covered by the Audi E-Tron
+Fisker Ocean (low-poly) (LagzDesign),https://sketchfab.com,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed. EV SUV slot is covered by the Audi E-Tron
+Woman Walking (andrewswihart),https://sketchfab.com/3d-models/none-7fdd3ab66966442db81cc8a7f4f741aa,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Old man walking (norgeotloic),https://sketchfab.com/3d-models/none-0f7535dc9dd1492e842cd6b2d23f4885,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Palm Tree tall (pizzaguyty),https://sketchfab.com/3d-models/none-557ea8d4527f47e8bbc657e2764b7cab,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+OLIVER TREE (noveD0209),https://sketchfab.com/3d-models/none-85477a679a9b4584aad1e00deae01ab3,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Cypress Tree (smaugthedeceiver),https://sketchfab.com/3d-models/none-a81126aa966b4664bb6185134e53415b,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Cypress Tree - Low Poly (nenjo),https://sketchfab.com/3d-models/none-2c596282c551468ea6c6a129405e6b68,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Level Crossing Barrier (Indonesia) (softfishy),https://sketchfab.com/3d-models/none-b3c49050bdf4472281d653b4f4de010c,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Orange street cone (jeandiz),https://sketchfab.com/3d-models/none-77da362c4cb44295a838fd778f70f31b,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+T - Bollard (Sebastian.Hamish.Webster),https://sketchfab.com/3d-models/none-e7e5f9b0c9c046869e81dd2fecd9dbc1,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Guard Rail (tylerlherring),https://sketchfab.com/3d-models/none-0fe3cc82e4534837b025a9d5ac2fcddd,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Traffic Cone / bollards (roy.3dartist),https://sketchfab.com/3d-models/none-e431856a119244da898928ecf684638a,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed
+Guard-rail (giovax1),https://sketchfab.com/3d-models/none-e817828588b148f1a8e5ed15f816810e,Download blocked by NetFree (418 risk-type on the signed S3 link); not bypassed

@@ -173,7 +173,7 @@ ok("A1" in T('js', 'elig.js') and '221(א)(1)' in T('js', 'elig.js'), 'A1 line i
 LJ = J('data', 'lessons.json'); NT = LJ.get('notes', {})
 ok(all(k in NT for k in ('1192', '40', '592')), 'bank-vs-law notes for Q1192, Q40, Q592')
 ok(all(NT[k]['exam'] == next(q['a'][q['c']] for q in Q if q['id'] == int(k)) for k in NT), 'notes quote the bank answer unchanged')
-vz = set(re.search(r'export const VIZ = \{([^}]*)\}', viz)[1].replace(' ', '').split(','))
+vz = set(re.search(r'const BASE = \{([^}]*)\}', viz)[1].replace(' ', '').split(','))
 ok(all(v in vz for l in L for v in l['viz']), f'every lesson diagram exists in js/viz.js')
 ok(sum(1 for l in L if not l['viz']) <= 2, f"lessons without a diagram: {[l['id'] for l in L if not l['viz']]}")
 ok(all(i in LB for i in ('vehicle', 'defensive', 'moto2', 'heavy2')), 'v1.3 lessons: vehicle, defensive, moto2, heavy2')
