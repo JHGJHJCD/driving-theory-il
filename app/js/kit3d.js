@@ -99,7 +99,7 @@ export function fig3(title, src, build) {
   stage.append(canvas, h('p', { class: 'vz3-hint small muted', text: 'גרור עם העכבר כדי לסובב, גלגלת לזום' }), loading);
   let C; try { C = core(canvas); } catch (e) { stage.replaceChildren(h('p', { class: 'warn-note', text: 'לא ניתן להציג תלת-ממד במחשב הזה. אפשר לחזור לתצוגה הדו-ממדית.' })); return f; }
   const W = world(C); f.dataset.scene = title; f._C = C;
-  Promise.resolve(build({ C, W, ctl, say: s => { alt.textContent = s; } })).catch(e => { console.error(e); stage.replaceChildren(h('p', { class: 'warn-note', text: 'שגיאה בטעינת הסצנה. אפשר לחזור לתצוגה הדו-ממדית.' })); });
+  W.track(Promise.resolve(build({ C, W, ctl, say: s => { alt.textContent = s; } })).catch(e => { console.error(e); stage.replaceChildren(h('p', { class: 'warn-note', text: 'שגיאה בטעינת הסצנה. אפשר לחזור לתצוגה הדו-ממדית.' })); }));   // an async build (e.g. fetching data) counts as loading, so data-ready means the scene exists
   W.whenReady(() => { loading.remove(); f.dataset.ready = '1'; });
   return f;
 }
