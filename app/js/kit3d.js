@@ -141,6 +141,7 @@ export function loadModel(path) {
 export const VEHICLES = {
   sedan: { f: 'cars/sedan', L: 4.3, W: 1.85, rot: Math.PI }, sports: { f: 'cars/sedan-sports', L: 4.4, W: 1.85, rot: Math.PI }, hatch: { f: 'cars/hatchback-sports', L: 4.0, W: 1.8, rot: Math.PI },
   suv: { f: 'cars/suv', L: 4.6, W: 1.95, rot: Math.PI }, suvlux: { f: 'cars/suv-luxury', L: 4.8, W: 1.95, rot: Math.PI }, van: { f: 'cars/van', L: 4.8, W: 1.95, rot: Math.PI },
+  evm3: { f: 'cars/ev-m3', L: 4.69, W: 2.1, rot: 0, paint: 'paint', lampY: 0.86, headY: 0.66, lampX: 0.55, fallback: true },
   taxi: { f: 'cars/taxi', L: 4.5, W: 1.85, rot: Math.PI }, police: { f: 'cars/police', L: 5.0, W: 1.9, rot: Math.PI }, ambulance: { f: 'cars/ambulance', L: 5.6, W: 2.0, rot: Math.PI },
   firetruck: { f: 'cars/firetruck', L: 8.0, W: 2.5, rot: Math.PI }, delivery: { f: 'cars/delivery', L: 6.4, W: 2.2, rot: Math.PI }, pickup: { f: 'cars/truck', L: 5.0, W: 1.95, rot: Math.PI },
   lorry: { f: 'cars/garbage-truck', L: 8.5, W: 2.5, rot: Math.PI }, tractor: { f: 'cars/tractor', L: 3.6, W: 1.9, rot: Math.PI },
@@ -253,7 +254,8 @@ export function world(C) {
     // ---------- vehicles
     vehicle(key, { name, tint, night = false } = {}) {
       if (key === 'bus' || key === 'schoolbus') return W.bus({ school: key === 'schoolbus', color: tint, name });
-      if (key === 'ev' || key === 'evsedan') { const e = buildEV({ variant: key === 'ev' ? 'suv' : 'sedan', color: tint ?? EV_PAINT[evCount++ % EV_PAINT.length] }); e.name = name || key; e.userData.key = key; e.userData.blinkSide = null; if (night) for (const m of e.userData.head) m.emissiveIntensity = 2.4; return e; }
+      if (key === 'ev' || key === 'evsedan') key = 'evm3';       // the electric car model (js/ev3d.js is the fallback if it cannot be loaded)
+      if (key === 'evm3') tint = tint ?? EV_PAINT[evCount++ % EV_PAINT.length];
       const spec = VEHICLES[key] || VEHICLES.sedan, g = new THREE.Group(); g.name = name || key; g.userData = { key, brake: [], blink: { L: [], R: [] }, head: [], blinkSide: null, eye: [-0.5, 1.4, -spec.L * 0.18], dims: { L: spec.L, W: spec.W, H: 1.6 }, wheels: [] };
       const inner = new THREE.Group(); g.add(inner);
       const p = loadModel(spec.f).then(gl => {
@@ -264,15 +266,17 @@ export function world(C) {
         wrap.scale.set(rotated ? s : sx, s, rotated ? sx : s); const outer = new THREE.Group(); outer.add(wrap); outer.rotation.y = spec.rot; inner.add(outer);
         // cars of the same file get different colours through a light tint on the body material only
         const H = sz.y * s; g.userData.dims.H = H; g.userData.eye = [-spec.W * 0.25, H * 0.95, -spec.L * 0.42];     // bonnet view: just behind the nose, so the (opaque) cabin never fills the picture
-        if (tint) wrap.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData = {}; o.material.color.set(tint); } });
+        if (spec.paint) wrap.traverse(o => { if (!o.isMesh) return; if (o.material.name === spec.paint) { const c = new THREE.MeshPhysicalMaterial({ color: tint || 0xdddddd, metalness: 0.6, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.3 }); c.name = spec.paint; o.material = c; } else { o.material = o.material.clone(); o.material.userData = {}; o.material.envMapIntensity = 0.9; } });
+        else if (tint) wrap.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData = {}; o.material.color.set(tint); } });
         shadows(outer);
         const mk = (c, em, ei) => new THREE.MeshStandardMaterial({ color: c, emissive: em, emissiveIntensity: ei, roughness: .4 });
-        const zr = spec.L / 2 + 0.015, zy = Math.max(0.5, H * 0.27), xs = spec.W * 0.33;
-        const add = (mm, x, z, sw, sh) => { const q = new THREE.Mesh(new THREE.BoxGeometry(sw, sh, 0.06), mm); q.position.set(x, zy, z); inner.add(q); return q; };
+        const zr = spec.L / 2 + 0.015, zy = spec.lampY ?? Math.max(0.5, H * 0.27), zyH = spec.headY ?? zy, xs = spec.lampX ?? spec.W * 0.33;
+        const add = (mm, x, z, sw, sh, yy = zy) => { const q = new THREE.Mesh(new THREE.BoxGeometry(sw, sh, 0.06), mm); q.position.set(x, yy, z); inner.add(q); return q; };
         for (const sgn of [-1, 1]) { const bm = mk(0x7a1010, 0xff1a1a, 0.1); add(bm, sgn * xs, zr, 0.36, 0.14); g.userData.brake.push(bm); }
-        for (const sgn of [-1, 1]) { const hm = mk(0xfff6cf, 0xfff2b0, night ? 2.2 : 0.25); add(hm, sgn * xs, -zr, 0.34, 0.16); g.userData.head.push(hm); }
+        for (const sgn of [-1, 1]) { const hm = mk(0xfff6cf, 0xfff2b0, night ? 2.2 : 0.25); add(hm, sgn * xs, -zr, 0.34, 0.12, zyH); g.userData.head.push(hm); }
         for (const [side, sgn] of [['L', -1], ['R', 1]]) for (const zz of [-zr, zr]) { const bm = mk(0x6a4300, 0xffa000, 0); add(bm, sgn * (spec.W / 2 - 0.1), zz, 0.2, 0.14); g.userData.blink[side].push(bm); }
-      }).catch(() => {                                                            // fallback: simple box car, so the scene still works
+      }).catch(() => {                                                            // fallback: the built-in electric car, or a simple box car, so the scene still works
+        if (spec.fallback) { const e = buildEV({ color: tint ?? 0x6c7077 }); Object.assign(g.userData, { brake: e.userData.brake, head: e.userData.head, blink: e.userData.blink, eye: e.userData.eye, dims: e.userData.dims }); inner.add(e); return; }
         const body = new THREE.Mesh(new THREE.BoxGeometry(spec.W, 1.0, spec.L), stdMat(tint || 0x4a7fd0, { roughness: .5 })); body.position.y = 0.8; inner.add(shadows(body)); });
       track(p); return g; },
     // city bus built here (the free bus models are untextured); front = -Z, doors on the right side

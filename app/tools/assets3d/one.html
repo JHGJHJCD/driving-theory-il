@@ -1,0 +1,8 @@
+<!doctype html><meta charset=utf-8><body style="margin:0"><canvas id=c style="width:1400px;height:700px;display:block"></canvas>
+<script type=module>
+import { core, world } from '../../js/kit3d.js';
+const q = new URL(location).searchParams; const C = core(document.getElementById('c')); const W = world(C); W.env({ ground: 'grass', size: 60, shadowSize: 20 });
+W.asphalt(0, 0, 20, 20); const v = W.vehicle(q.get('k') || 'ev', { tint: q.get('t') ? +q.get('t') : undefined }); C.scene.add(v);
+C.view.target.set(0, 0.8, 0); C.view.yaw = +(q.get('yaw') ?? 0.6); C.view.pitch = +(q.get('p') ?? 0.3); C.view.dist = +(q.get('d') ?? 9); C.view.min = 2;
+W.whenReady(() => setTimeout(() => { window.__info = { dims: v.userData.dims }; document.title = 'done'; }, 3500));
+</script>
