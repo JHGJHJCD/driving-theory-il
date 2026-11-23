@@ -34,7 +34,7 @@ export default function brakes3d() {
     });
     const T = [
       () => { smoke = false; W.setBrake(me, false); A.goto([[a, { x: LANE, z: 24 }]], 4.2); },
-      () => { smoke = false; A.goto([[a, { x: LANE, z: 0 }]], 4.6); setTimeout(() => { if (cur === 1) { W.setBrake(me, true); sfx.brake(); } }, 700); },
+      () => { smoke = false; A.goto([[a, { x: LANE, z: 0 }]], 4.6); setTimeout(() => { if (cur === 1) { W.setBrake(me, true); sfx.handbrake(); } }, 700); },
       () => { A.goto([[a, { x: LANE, z: -14 }]], 3.4); smoke = true; W.setBrake(me, false); },
     ];
     let cur = 0; const setTag = i => { if (label3) { me.remove(label3); label3.material.map?.dispose(); } label3 = label(TAGS[i][0], { size: 1.3, bg: TAGS[i][1] }); label3.position.set(0, 3.4, 0); me.add(label3); };

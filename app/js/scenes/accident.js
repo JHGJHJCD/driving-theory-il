@@ -34,7 +34,7 @@ export default function accident3d() {
       () => { hz = true; driver.visible = true; tri.visible = true;
         const to = { x: hurtPos.x - 1.1, z: hurtPos.z + 0.6 }; const start = { x: LANE - 1.7, z: 11 };
         aDrv.p = { ...start, h: face(start, to) }; aDrv.obj.position.set(start.x, 0, start.z);
-        A.goto([[aMe, { x: LANE, z: 11, h: 0 }], [aDrv, { ...to, h: face(start, to) }], [aAmb, { x: -LANE, z: -16, h: Math.PI }], [aPol, { z: -112 }]], 4.5); },
+        A.goto([[aMe, { x: LANE, z: 11, h: 0 }], [aDrv, { ...to, h: face(start, to) }], [aAmb, { x: -LANE, z: -16, h: Math.PI }], [aPol, { z: -112 }]], 4.5); setTimeout(() => { if (step === 1) sfx.siren('amb'); }, 500); },
       () => { const to = { x: LANE - 2.2, z: ZC - 4.8 }; A.goto([[aDrv, { ...to, h: face(aDrv.p, to) }], [aAmb, { x: -LANE, z: -16, h: Math.PI }], [aPol, { z: -112 }]], 3.6); setTimeout(() => { if (step === 2) { aDrv.obj.rotation.y = face(to, aOth.p); aOth.obj.rotation.y = face(aOth.p, to); } }, 3800); },
       () => { A.goto([[aPol, { x: -LANE, z: -27, h: Math.PI }], [aAmb, { x: -LANE, z: -16, h: Math.PI }]], 4); },
     ];

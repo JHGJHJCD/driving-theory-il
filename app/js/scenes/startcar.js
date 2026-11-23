@@ -57,7 +57,7 @@ export default function startcar3d() {
       () => { targets = { brake: -0.95, clutch: -0.45, hb: -0.7, gear: 0, key: 0 }; started = false; },
       () => { targets = { brake: -0.95, clutch: -0.45, hb: -0.7, gear: 0, key: 0 }; started = false; },
       () => { targets = { brake: -0.95, clutch: -0.95, hb: -0.7, gear: 0.18, key: 0 }; started = false; },
-      () => { targets = { brake: -0.95, clutch: -0.95, hb: -0.7, gear: 0.18, key: -0.9 }; setTimeout(() => { if (cur === 3) { targets.key = 0; started = true; eng ||= sfx.engine(); eng.set(0.4); setTimeout(() => { eng?.stop(); eng = null; }, 1600); } }, 900); },
+      () => { targets = { brake: -0.95, clutch: -0.95, hb: -0.7, gear: 0.18, key: -0.9 }; sfx.ignition(); setTimeout(() => { if (cur === 3) { targets.key = 0; started = true; eng ||= sfx.engine(); eng.set(0.4); setTimeout(() => { eng?.stop(); eng = null; }, 1600); } }, 900); },
     ];
     targets.hb = 0;
     const setTag = i => { if (tag) { root.remove(tag); tag.material.map?.dispose(); } tag = label(TAGS[i], { size: 0.34, bg: 'rgba(30,140,80,.95)' }); tag.position.set(...FPOS[i]); root.add(tag); };

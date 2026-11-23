@@ -180,14 +180,20 @@ const asphaltTex = () => canvasTex('asphalt', 512, 512, (x, w, h2) => { const r 
   for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(${r() < .5 ? '255,255,255' : '0,0,0'},${(r() * .05).toFixed(3)})`; x.beginPath(); x.arc(r() * w, r() * h2, 20 + r() * 60, 0, 7); x.fill(); }
   noise(x, w, h2, 5000, 'rgba(255,255,255,A)', .22, r); noise(x, w, h2, 5000, 'rgba(0,0,0,A)', .35, r); });
 // real sky (Poly Haven HDRI "Kloofendal 48d Partly Cloudy", CC0): reflections on the cars and the background of daytime scenes
-let hdrP = null;
-const skyHDR = () => (hdrP ||= import('../vendor/jsm/RGBELoader.js').then(m => new m.RGBELoader().loadAsync(new URL('../assets3d/tex/sky-day.hdr', import.meta.url).href)).then(t => { t.mapping = THREE.EquirectangularReflectionMapping; return t; }).catch(e => { hdrP = null; throw e; }));
+let hdrP = {};
+const skyHDR = kind => (hdrP[kind] ||= import('../vendor/jsm/RGBELoader.js').then(m => new m.RGBELoader().loadAsync(new URL('../assets3d/tex/sky-' + kind + '.hdr', import.meta.url).href)).then(t => { t.mapping = THREE.EquirectangularReflectionMapping; return t; }).catch(e => { delete hdrP[kind]; throw e; }));
 // real PBR asphalt (Poly Haven "Asphalt 02", CC0): diffuse / normal / roughness, loaded once and shared
-let pbr = null;
-function asphaltPBR() {
-  if (pbr) return pbr; const tl = new THREE.TextureLoader(), u = n => new URL('../assets3d/tex/' + n, import.meta.url).href;
+const pbrCache = new Map();
+function pbrSet(name) {       // assets3d/tex/<name>-diff|nor|rough.jpg, loaded once and shared
+  if (pbrCache.has(name)) return pbrCache.get(name); const tl = new THREE.TextureLoader(), u = n => new URL('../assets3d/tex/' + name + '-' + n + '.jpg', import.meta.url).href;
   const ld = (n, srgb) => tl.loadAsync(u(n)).then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.userData = { shared: true }; return t; });
-  return (pbr = Promise.all([ld('asphalt-diff.jpg', true), ld('asphalt-nor.jpg'), ld('asphalt-rough.jpg')]).then(([diff, nor, rough]) => ({ diff, nor, rough })).catch(e => { pbr = null; throw e; }));
+  const p = Promise.all([ld('diff', true), ld('nor'), ld('rough')]).then(([diff, nor, rough]) => ({ diff, nor, rough })).catch(e => { pbrCache.delete(name); throw e; }); pbrCache.set(name, p); return p;
+}
+const asphaltPBR = () => pbrSet('asphalt');
+// gives a material the shared PBR maps of a set, tiled `rep` times (the clones are made after loading, so they always carry image data)
+function applyPBR(mat, name, rep, track) {
+  const job = pbrSet(name).then(T => { const tx = t => { const c = t.clone(); c.repeat.set(rep[0], rep[1]); c.needsUpdate = true; return c; }; mat.color.set(0xffffff); mat.map = tx(T.diff); mat.normalMap = tx(T.nor); mat.roughnessMap = tx(T.rough); mat.roughness = 1; mat.needsUpdate = true; }).catch(() => {});
+  track?.(job); return mat;
 }
 const grassTex = () => canvasTex('grass', 512, 512, (x, w, h2) => { const r = rng(11); x.fillStyle = '#6a9a4a'; x.fillRect(0, 0, w, h2);
   for (let i = 0; i < 70; i++) { x.fillStyle = `rgba(${r() < .5 ? '40,90,30' : '150,190,90'},${(r() * .12).toFixed(3)})`; x.beginPath(); x.arc(r() * w, r() * h2, 14 + r() * 50, 0, 7); x.fill(); }
@@ -214,13 +220,14 @@ export function world(C) {
       const night = sky === 'night', dusk = sky === 'dusk';
       const [a, b, c] = night ? ['#070b18', '#1a2540', '#2a3350'] : dusk ? ['#6d86b8', '#f0b48a', '#f6d8a8'] : ['#5b9be0', '#a9cdf0', '#e4f0fa'];
       scene.background = skyTex(a, b, c); if (fog) scene.fog = new THREE.Fog(new THREE.Color(c), 140, 520);
-      if (!night && !dusk) track(skyHDR().then(tex => { if (C.disposed) return; const rt = C.pmrem.fromEquirectangular(tex); C.envRT.dispose(); C.envRT = rt; scene.environment = rt.texture; scene.background = tex; scene.backgroundBlurriness = 0.02; scene.fog?.color.set(0xcfdceb); }).catch(() => {}));
+      track(skyHDR(night ? 'night' : dusk ? 'dusk' : 'day').then(tex => { if (C.disposed) return; const rt = C.pmrem.fromEquirectangular(tex); C.envRT.dispose(); C.envRT = rt; scene.environment = rt.texture; scene.background = tex; scene.backgroundBlurriness = 0.02; if (!night && !dusk) scene.fog?.color.set(0xcfdceb); }).catch(() => {}));
       const hemi = new THREE.HemisphereLight(night ? 0x5a6cae : 0xdfeaff, night ? 0x1b2216 : 0x6d7f55, night ? 0.5 : 1.05); scene.add(hemi);
       const sun = new THREE.DirectionalLight(night ? 0x8fa3ff : dusk ? 0xffd2a0 : 0xfff3e0, night ? 0.35 : 2.4); sun.position.set(...sunDir); sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -shadowSize; sc.right = shadowSize; sc.top = shadowSize; sc.bottom = -shadowSize; sc.near = 1; sc.far = 220; sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
       scene.add(sun, sun.target); W.sun = sun; if (night) C.renderer.toneMappingExposure = 0.9;
-      const gt = grassTex().clone(); gt.needsUpdate = true; gt.repeat.set(size * 0.4, size * 0.4);
-      const g = new THREE.Mesh(new THREE.PlaneGeometry(size * 4, size * 4), new THREE.MeshStandardMaterial({ map: ground === 'grass' ? gt : null, color: ground === 'grass' ? 0xffffff : 0xb9b29c, roughness: 1 }));
+      const gm = new THREE.MeshStandardMaterial({ color: ground === 'grass' ? 0x6f9c52 : 0xb9b29c, roughness: 1 });
+      if (ground === 'grass') applyPBR(gm, 'grass', [size * 4 / 3, size * 4 / 3], track);      // real lawn texture (ambientCG, CC0) over a plain green until it has loaded
+      const g = new THREE.Mesh(new THREE.PlaneGeometry(size * 4, size * 4), gm);
       g.rotation.x = -Math.PI / 2; g.position.y = -0.02; g.receiveShadow = true; scene.add(g); W.ground = g; return W;
     },
     followSun(x, z) { W.sun.position.set(x + 30, 55, z + 22); W.sun.target.position.set(x, 0, z); },
@@ -228,7 +235,7 @@ export function world(C) {
     // ---------- road surface and markings
     asphalt(x, z, w, d, { y = 0.012, ry = 0 } = {}) { const rep = [w / 5, d / 5];
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: 0x4b4e54, roughness: 0.9, metalness: 0, envMapIntensity: 0.6 }));
-      track(asphaltPBR().then(T => { const tx = t => { const c = t.clone(); c.repeat.set(...rep); c.needsUpdate = true; return c; }; const mt = m.material; mt.color.set(0xffffff); mt.map = tx(T.diff); mt.normalMap = tx(T.nor); mt.normalScale.set(0.9, 0.9); mt.roughnessMap = tx(T.rough); mt.roughness = 1; mt.needsUpdate = true; }).catch(() => {}));
+      applyPBR(m.material, 'asphalt', rep, track); m.material.normalScale?.set(0.9, 0.9);
       m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m; },
     flat(x, z, w, d, color, { y = 0.03, opacity = 1, emissive = 0, ry = 0, rough = 0.7 } = {}) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color, roughness: rough, transparent: opacity < 1, opacity, emissive, emissiveIntensity: emissive ? 0.6 : 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, depthWrite: opacity >= 1 }));
       m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m; },
@@ -249,8 +256,9 @@ export function world(C) {
       const sh = new THREE.Shape(); sh.moveTo(0, 1.6); sh.lineTo(0.6, 0.6); sh.lineTo(0.2, 0.6); sh.lineTo(0.2, -1.6); sh.lineTo(-0.2, -1.6); sh.lineTo(-0.2, 0.6); sh.lineTo(-0.6, 0.6); sh.closePath();
       const a = new THREE.Mesh(new THREE.ShapeGeometry(sh), m); a.rotation.x = -Math.PI / 2; a.position.y = 0.034; g.add(a); g.position.set(x, 0, z); g.rotation.y = heading; scene.add(g); return g; },
     // raised kerb + pavement strip (light paving), top at 0.16
-    kerb(x, z, w, d, { color = 0xc9c4b8, h: hh = 0.16 } = {}) { const t = paveTex().clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 2), Math.max(1, d / 2));
-      const top = new THREE.MeshStandardMaterial({ map: t, roughness: .9 }), side = new THREE.MeshStandardMaterial({ color: 0xb8b3a6, roughness: .9 });
+    kerb(x, z, w, d, { color = 0xc9c4b8, h: hh = 0.16 } = {}) {
+      const top = new THREE.MeshStandardMaterial({ color: 0xc9c4b8, roughness: .9 }), side = new THREE.MeshStandardMaterial({ color: 0xb8b3a6, roughness: .9 });
+      applyPBR(top, 'pave', [Math.max(1, w / 1.6), Math.max(1, d / 1.6)], track);               // real paving (ambientCG, CC0)
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), [side, side, top, side, side, side]); m.position.set(x, hh / 2, z); m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; },
     box(x, y, z, w, hh, d, color, o = {}) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), stdMat(color, o)); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; },
     // a straight two-way road along Z: lanes each way, kerbs and pavements on both sides, white edge + centre line (dashed or solid)
