@@ -430,3 +430,5 @@ line.vz-span { stroke: #f3a712; stroke-width: 6; fill: none; }
 :root[data-theme="dark"] .vz3-loading { background: rgba(14,20,36,.6); color: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .vz3-loading { background: rgba(14,20,36,.6); color: #fff; } }
 .vz3-hint { position: absolute; inset-inline-start: 10px; bottom: 6px; margin: 0; padding: 2px 8px; border-radius: 8px; background: rgba(0,0,0,.35); color: #fff; pointer-events: none; }
+
+.credits summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
