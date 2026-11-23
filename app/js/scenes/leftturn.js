@@ -2,7 +2,7 @@
 // (one-way / two-way roads, lane counts) and drives the car along the described path.
 import { THREE, fig3, chipGroup, btn, sfx, Path, place, ease, reduced, VEHICLES } from '../kit3d.js';
 import { h } from '../ui.js';
-import { junction } from './_junction.js';
+import { noseEye, junction } from './_junction.js';
 
 const TB = 'לפי ספר הלימוד הרשמי "נוהגים אחרת – נוהגים נכון" (הרשות הלאומית לבטיחות בדרכים ומשרד התחבורה)';
 const STEPS = [   // [chip label, caption] – identical to the 2D flow
@@ -23,7 +23,7 @@ export default function leftturn3d() {
       { v: { one: false, n: 1 }, hz: { one: true, n: 2 }, from: J => J.lane.v('nb', 0), turn: (xs, ze) => [[xs, 5.4], [xs, ze], [-1.5, ze]], to: J => J.lane.h('wb', 0) },
       { v: { one: false, n: 1 }, hz: { one: false, n: 1 }, from: J => J.lane.v('nb', 0), turn: (xs, ze) => [[xs, 6.0], [xs, ze], [-6.0, ze]], to: J => J.lane.h('wb', 0) },
     ];
-    const me = W.vehicle('hatch', { name: 'me' }); scene.add(me); W.label(me, 'אתה', { size: 1.4, bg: 'rgba(42,111,219,.95)' });
+    const me = W.vehicle('ev', { name: 'me' }); scene.add(me); W.label(me, 'אתה', { size: 1.4, bg: 'rgba(42,111,219,.95)' });
     let J = null, extras = [], path = null, i = 0, anim = null, eng = null, bl = null, quiet = 0;
     const rm = o => { scene.remove(o); o.traverse(m => { if (m.userData?.shared) return; m.geometry?.dispose?.(); for (const x of [].concat(m.material || [])) { x.map?.dispose?.(); x.dispose?.(); } }); };
     const build = () => {
@@ -49,6 +49,7 @@ export default function leftturn3d() {
     const drive = () => { place(me, path.at(0)); if (reduced()) { place(me, path.at(path.len)); anim = null; setBlinker(false); return; } anim = { t: 0, dur: 7 }; setBlinker(true); };
     C.onDispose(() => { bl?.stop(); eng?.stop(); J?.dispose(); });
     C.onFrame((dt, now) => {
+      if (view.driver) noseEye(me);
       W.blinkTick(me, now); W.followSun(0, 0);
       if (anim) { anim.t = Math.min(1, anim.t + dt / anim.dur); const k = ease(anim.t); place(me, path.at(k * path.len));
         if (anim.t < 1) { quiet = 0; if (!eng) eng = sfx.engine(); eng.set(0.3); } else { anim = null; setBlinker(false); } }

@@ -4,7 +4,7 @@
 import { THREE, fig3, chipGroup, btn, sfx, reduced, ease, shortest, label } from '../kit3d.js';
 import { h } from '../ui.js';
 
-export function flowScene({ title, src, steps, intro = '', setup, cams: camDefs, target = [0, 0.8, 0] }) {
+export function flowScene({ title, src, steps, intro = '', setup, cams: camDefs, target = [0, 0.8, 0], tagSize = 1.1 }) {
   return fig3(title, src, ({ C, W, ctl, say }) => {
     const view = C.view, tweens = [];
     const tw = {
@@ -21,14 +21,14 @@ export function flowScene({ title, src, steps, intro = '', setup, cams: camDefs,
     C.onFrame(dt => { for (let j = tweens.length - 1; j >= 0; j--) { const t = tweens[j]; t.t += dt; if (t.t < 0) continue; if (!t.started) { t.started = true; t.start?.(); } const k = Math.min(1, t.t / t.dur); t.fn(t.e(k)); if (k >= 1) { tweens.splice(j, 1); t.end?.(); } } });
     const S = setup({ C, W, tw, view, say });
     const camSet = { three: { yaw: 0.9, pitch: 0.5, dist: 22 }, top: { yaw: 0, pitch: 1.45, dist: 24 }, ...(S.cams || camDefs || {}) };
-    let cam = 'three', i = 0, tag = null, T = new THREE.Vector3(...(S.target || target));
+    const base3 = { ...camSet.three }; let cam = 'three', i = 0, tag = null, T = new THREE.Vector3(...(S.target || target));
     const setCam = (k, instant) => { cam = k; if (k === 'drv') { view.driver = S.driver; view.goal = null; return; } view.driver = null; const g = { ...camSet[k], target: T.clone() }; if (instant) { Object.assign(view, g); view.target.copy(T); view.goal = null; } else view.goal = g; };
     Object.assign(view, camSet.three); view.target.copy(T);
     const n = steps.length;
     const show = () => {
-      const r = S.step(i, i === 0) || {}; if (r.look) { T = new THREE.Vector3(...r.look); if (cam !== 'drv') setCam(cam); }
+      const r = S.step(i, i === 0) || {}; camSet.three = { ...base3, ...(r.view || {}) }; if (r.view && cam === 'three') setCam('three'); if (r.look) { T = new THREE.Vector3(...r.look); if (cam !== 'drv') setCam(cam); }
       if (tag) { C.scene.remove(tag); tag.material.map?.dispose(); tag.material.dispose(); tag = null; }
-      if (r.tag) { tag = label(`${i + 1} · ${steps[i][0].replace('\n', ' ')}`, { size: 1.1, bg: 'rgba(20,90,70,.93)' }); tag.position.set(...r.tag); C.scene.add(tag); }
+      if (r.tag) { tag = label(`${i + 1} · ${steps[i][0].replace('\n', ' ')}`, { size: tagSize, bg: 'rgba(20,90,70,.93)' }); tag.position.set(...r.tag); C.scene.add(tag); }
       say((intro ? intro + ' ' : '') + `צעד ${i + 1} מתוך ${n}: ${steps[i][1]}`);
       nextB.disabled = i >= n - 1; if (nextB.disabled && document.activeElement === nextB) againB.focus();
     };

@@ -16,7 +16,7 @@ export default function parking3d() {
     // houses and trees along the road (kept clear of the middle, where the objects are)
     const r = rng(21), HOUSES = ['city/building-type-a', 'city/building-type-b', 'city/building-type-c', 'city/building-type-d', 'city/building-type-e', 'city/building-type-f'];
     view.clampX = RW + PAVE + 3.5;
-    for (const side of [-1, 1]) { for (let z = -ZL + 8; z < ZL - 8; z += 13 + r() * 5) { if (Math.abs(z) < 14 || (Math.abs(z) < 120 && side > 0 && z > -12 && z < 12)) continue;
+    for (const side of [-1, 1]) { for (let z = -ZL + 8; z < ZL - 8; z += 13 + r() * 5) { if (Math.abs(z) < 24) continue;
       W.prop(HOUSES[Math.floor(r() * HOUSES.length)], { scale: 8.5 + r() * 2, x: side * (RW + PAVE + 9 + r() * 3), z, ry: side < 0 ? Math.PI / 2 : -Math.PI / 2 });
       W.prop(r() < .5 ? 'city/tree-large' : 'city/tree-small', { scale: 8 + r() * 3, x: side * (RW + PAVE + 1.2), z: z + 6, ry: r() * 6 }); } }
     let made = [], pulse = [], me = null;
@@ -36,7 +36,7 @@ export default function parking3d() {
         else if (k === 'zebra') { kerbs([]); W.zebra(0, 0, 2 * RW - 0.8, { depth: 3, bar: 0.5, gap: 0.5 }); W.sign('crossing', { x: RW + PAVE - 0.6, z: 3.2, ry: -Math.PI / 2 + 0.2 }); }
         else if (k === 'rail') { kerbs([]); track(0); W.sign('rail', { x: RW + PAVE - 0.6, z: 9, ry: -Math.PI / 2 + 0.2, size: 1.2 }); }
         else if (k === 'bus') { kerbs([]); W.sign('info', { x: RW + PAVE - 0.8, z: 0, ry: -Math.PI / 2 + 0.2, text: 'אוטובוס', size: 1.1 }); W.box(RW + PAVE - 0.6, 1.2, -2.2, 0.15, 2.4, 3.2, 0x9ab6c8, { transparent: true, opacity: 0.45 }); W.box(RW + PAVE - 0.6, 2.45, -2.2, 1.4, 0.12, 3.4, 0x4a5058); }
-        else if (k === 'bridge') { kerbs([[-h2, h2]]); const wat = W.flat(0, 0, 70, obj + 12, 0x3f7fb5, { y: 0.004, rough: 0.2 }); for (const s of [-1, 1]) W.box(s * (RW + 0.25), 0.55, 0, 0.5, 1.1, obj, 0xb7b2a6); for (const s of [-1, 1]) W.box(s * (RW + PAVE / 2 + 0.5), 0.1, 0, PAVE + 1, 0.2, obj, 0xb7b2a6); void wat; }
+        else if (k === 'bridge') { kerbs([[-h2, h2]]); const wat = W.box(0, -0.045, 0, 70, 0.1, obj + 12, 0x3f7fb5, { roughness: 0.2 }); for (const s of [-1, 1]) W.box(s * (RW + 0.25), 0.55, 0, 0.5, 1.1, obj, 0xb7b2a6); for (const s of [-1, 1]) W.box(s * (RW + PAVE / 2 + 0.5), 0.1, 0, PAVE + 1, 0.2, obj, 0xb7b2a6); void wat; }
         // the no-stopping zone on the right-hand side: b before the object (toward +Z, where traffic comes from), a after it
         const zc = (b - a) / 2, zl = b + obj + a, zx = RW - 1.25, zone = W.zone(zx, zc, 2.5, zl, 0xe5483f, { opacity: 0.5, y: 0.08 }); pulse = [zone];
         const mk = (x, z) => W.post(x, z, '', { color: 0xf5b301 });
@@ -45,17 +45,17 @@ export default function parking3d() {
         lab(b + " מ'", h2 + b / 2); if (a) lab(a + " מ'", -(h2 + a / 2));
       });
       const L = b + obj + a, zc = (b - a) / 2;
-      view.goal = { yaw: view.yaw, pitch: 0.6, dist: 26 + L * 0.7, target: new THREE.Vector3(1, 0, zc) }; view.follow = null;
+      view.goal = { yaw: view.yaw, pitch: 0.6, dist: 34 + L * 0.8, target: new THREE.Vector3(1, 0, zc) }; view.follow = null;
       say(`${p[1]}: אסור לעצור ולהעמיד רכב ${p[4]} (תקנה ${p[5]}). התנועה נוסעת קדימה בכביש (נתיב ימין); האורכים לפי קנה מידה, והעצם עצמו מצויר להמחשה.`); };
     let cur = 'junction';
     // ambient traffic: one car drives through the street, so the driver's view shows the zone from behind the wheel
-    me = W.vehicle('hatch', { name: 'me' }); scene.add(me); me.position.set(LANE, 0, ZL); C.onFrame((dt) => { me.position.z -= 9 * dt; if (me.position.z < -ZL) me.position.z = ZL; });
+    me = W.vehicle('ev', { name: 'me' }); scene.add(me); me.position.set(LANE, 0, ZL); C.onFrame((dt) => { me.position.z -= 9 * dt; if (me.position.z < -ZL) me.position.z = ZL; });
     C.onFrame((dt, now) => { const o = 0.4 + 0.2 * Math.sin(now * 3); for (const z of pulse) z.material.opacity = o; });
     const cams = { three: { yaw: 0.9, pitch: 0.6 }, top: { yaw: 0, pitch: 1.45 }, side: { yaw: 1.5, pitch: 0.22 } };
     view.target.set(1, 0, 0); Object.assign(view, { yaw: 0.9, pitch: 0.6, dist: 60 }); view.max = 220;
     const run = k => { cur = k; drop(made); made = []; build(k); };
     const sel = chipGroup(PK.map(p => [p[0], p[1]]), 'junction', run);
-    const camSel = chipGroup([['three', 'מבט חצי'], ['top', 'מלמעלה'], ['side', 'מהצד'], ['drv', 'מבט הנהג']], 'three', k => { if (k === 'drv') { view.driver = me; view.goal = null; } else { view.driver = null; const p = PK.find(x => x[0] === cur), L = p[2] + OBJ[cur] + p[3]; view.goal = { ...cams[k], dist: (k === 'top' ? 30 : 26) + L * (k === 'top' ? 0.95 : 0.7), target: new THREE.Vector3(1, 0, (p[2] - p[3]) / 2) }; } });
+    const camSel = chipGroup([['three', 'מבט חצי'], ['top', 'מלמעלה'], ['side', 'מהצד'], ['drv', 'מבט הנהג']], 'three', k => { if (k === 'drv') { view.driver = me; view.goal = null; } else { view.driver = null; const p = PK.find(x => x[0] === cur), L = p[2] + OBJ[cur] + p[3]; view.goal = { ...cams[k], dist: (k === 'top' ? 34 : 34) + L * (k === 'top' ? 1.0 : 0.8), target: new THREE.Vector3(1, 0, (p[2] - p[3]) / 2) }; } });
     ctl.append(sel, camSel); run('junction');
   });
 }

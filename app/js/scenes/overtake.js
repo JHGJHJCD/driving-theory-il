@@ -19,7 +19,7 @@ export default function overtake3d() {
     const drop = arr => { for (const m of arr) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); } };
     const stripe = (x, dashed) => { if (!dashed) lineMeshes.push(W.line(x, -L / 2, L / 2, { w: 0.16, y: 0.035 })); else lineMeshes.push(...W.dashes(x, -L / 2, L / 2, { w: 0.16, y: 0.035 })); };
 
-    const me = W.vehicle('hatch', { name: 'me' }), slow = W.vehicle('delivery', { name: 'slow' }); scene.add(me, slow); slow.position.set(LANE, 0, -18);
+    const me = W.vehicle('ev', { name: 'me' }), slow = W.vehicle('delivery', { name: 'slow' }); scene.add(me, slow); slow.position.set(LANE, 0, -18);
     W.label(me, 'אתה', { size: 1.3, bg: 'rgba(42,111,219,.95)' }); W.label(slow, 'רכב איטי', { size: 1.2, bg: 'rgba(80,86,96,.95)' });
     const route = new Path([{ t: 'l', a: [LANE, 16], b: [LANE, -3] }, { t: 'q', a: [LANE, -3], c: [LANE, -8], b: [-LANE, -11] }, { t: 'l', a: [-LANE, -11], b: [-LANE, -26] }, { t: 'q', a: [-LANE, -26], c: [-LANE, -30], b: [LANE, -33] }, { t: 'l', a: [LANE, -33], b: [LANE, -52] }]);
     let ribbon = null, mark = null;

@@ -477,7 +477,7 @@ function with3d(key, make2d) {
       if (m === '2d') { n2 ||= make2d(o); host.replaceChildren(n2); return; }
       host.replaceChildren(h('p', { class: 'small muted', text: 'טוען תלת-ממד…' }));
       whenVisible(() => { if (my !== tok) return;
-        import('./viz3d.js').then(mod => mod.SCENES[key]()).then(node => { if (my !== tok) return; host.replaceChildren(node); })
+        import('./viz3d.js').then(mod => mod.SCENES[key](o)).then(node => { if (my !== tok) return; host.replaceChildren(node); })
           .catch(() => { if (my === tok) host.replaceChildren(h('p', { class: 'warn-note', text: 'לא הצלחתי לטעון את התלת-ממד. מציג דו-ממד.' }), n2 ||= make2d(o)); }); });
     }
     show(mode);

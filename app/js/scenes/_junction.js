@@ -49,3 +49,6 @@ export function junction(C, W, { v = { one: false, n: 1 }, hz = { one: false, n:
 // "where the car waits": z of the car centre so its nose is `gap` m before the junction edge (car length l)
 export const waitZ = (J, l, gap = 1.2) => J.hh + gap + l / 2;
 export { THREE };
+
+// driver's eye for the bonnet camera: just behind the car's nose, above the bonnet (the models' own cabins are opaque)
+export const noseEye = car => { const d = car.userData.dims || { L: 4.3, H: 1.6 }; car.userData.eye = [-0.45, car.userData.key === 'bus' ? 2.45 : Math.max(1.45, d.H * 0.8), -(d.L / 2 - 0.45)]; };

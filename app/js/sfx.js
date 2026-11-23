@@ -1,4 +1,5 @@
-// Sound effects, synthesized with WebAudio: no audio files, no network. Works offline.
+// Sound effects. Interface sounds are synthesized with WebAudio; the car sounds of the 3D scenes use a few short real recordings (CC0, assets3d/audio)
+// plus a synthesized electric drivetrain. Everything is same-origin and works offline.
 // Every sound is started from a user gesture (a click or key), which browsers require.
 // Preference is kept in its own localStorage key (not in the progress file), so backups are unaffected.
 const KEY = 'theory-il-sfx';
@@ -57,26 +58,64 @@ export const tick = () => tone('square', 900, 0, 0.03, 0.07);
 export const warn = () => { tone('square', 740, 0, 0.09, 0.1); tone('square', 740, 0.14, 0.09, 0.1); };
 
 // ---- car sounds for the 3D scenes ----
-export function horn() { tone('square', 392, 0, 0.45, 0.09); tone('square', 494, 0, 0.45, 0.09); }
-export function brake() { noise(0, 0.7, 0.2, 2200, 5200); tone('sawtooth', [900, 380], 0, 0.6, 0.03); }
+// real recordings (assets3d/audio, see assets3d/LICENSE.txt); decoded once, a synthesized fallback is used if one cannot be loaded
+const AUDIO = new URL('../assets3d/audio/', import.meta.url), bufs = new Map();
+function sample(name) {
+  const c = ac(); if (!c) return Promise.resolve(null);
+  if (!bufs.has(name)) bufs.set(name, fetch(new URL(name + '.ogg', AUDIO)).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => new Promise((ok, no) => c.decodeAudioData(b, ok, no))).catch(() => { bufs.delete(name); return null; }));
+  return bufs.get(name);
+}
+function play(name, { gain = 0.6, rate = 1, at = 0, loop = false, fade = 0.03, dur = 0 } = {}) {
+  const c = ac(); if (!c) return null; let src = null, g = null, dead = false;
+  sample(name).then(b => { if (!b || dead) return; src = c.createBufferSource(); src.buffer = b; src.loop = loop; src.playbackRate.value = rate; g = c.createGain();
+    const t0 = c.currentTime + at; g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(gain, t0 + fade);
+    if (dur) { g.gain.setValueAtTime(gain, t0 + Math.max(fade, dur - 0.15)); g.gain.linearRampToValueAtTime(0.0001, t0 + dur); }
+    src.connect(g); g.connect(master); src.start(t0); if (dur) src.stop(t0 + dur + 0.05); });
+  return { stop() { dead = true; if (g) { try { g.gain.setTargetAtTime(0.0001, ac().currentTime, 0.05); src.stop(ac().currentTime + 0.3); } catch {} } } };
+}
+export function preload() { for (const n of ['blink', 'door-close', 'door-open', 'squeal', 'traffic']) sample(n); }
+
+// horn: two sawtooth voices (about 400 and 500 Hz, as a car horn pair) through a low-pass, with a short attack
+export function horn() {
+  const c = ac(); if (!c) return; const t0 = c.currentTime, g = c.createGain(), f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400; f.Q.value = 0.8;
+  g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.16, t0 + 0.03); g.gain.setValueAtTime(0.16, t0 + 0.42); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.52);
+  for (const fr of [398, 503, 402, 507]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = fr; o.connect(f); o.start(t0); o.stop(t0 + 0.6); }
+  f.connect(g); g.connect(master);
+}
+// braking: a real tyre squeal recording, rising in pitch as the car slows, plus a short low rumble
+export function brake() { const h = play('squeal', { gain: 0.5, rate: 0.9, loop: true, dur: 0.95, fade: 0.08 }); if (!h) return; noise(0, 0.9, 0.12, 120, 900); if (!bufs.get('squeal')) { noise(0, 0.7, 0.2, 2200, 5200); } }
+export function door(open = false) { play(open ? 'door-open' : 'door-close', { gain: 0.8 }); }
+export function ambience(gain = 0.35) { const h = play('traffic', { gain, loop: true, fade: 0.6 }); if (!h) return { stop() {} }; live.add(h); const stop = h.stop; h.stop = () => { stop(); live.delete(h); }; return h; }
 export function beep() { tone('sine', 1000, 0, 0.12, 0.14); }
 export function bump() { tone('sine', [140, 50], 0, 0.25, 0.4); noise(0, 0.2, 0.25, 200, 900); }
-// engine: a low sawtooth through a low-pass filter; set(0..1) raises pitch and loudness
+// electric drivetrain (the cars in the scenes are electric): a soft motor whine that rises with speed, tyre and wind noise that grow with speed,
+// and below about 20 km/h the low "pedestrian warning" hum that electric cars must make at low speed (it fades out above that). Silent when stopped.
+// set(0..1) is the speed as a fraction of about 130 km/h.
+let noiseBuf = null;
+function loopNoise(c) { if (!noiseBuf) { noiseBuf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate); const d = noiseBuf.getChannelData(0); let b = 0; for (let i = 0; i < d.length; i++) { b = 0.97 * b + 0.03 * (Math.random() * 2 - 1); d[i] = (Math.random() * 2 - 1) * 0.6 + b * 6; } } const s = c.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s; }
 export function engine() {
   const c = ac(); if (!c) return { set() {}, stop() {} };
-  const o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
-  o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.frequency.value = 500; g.gain.value = 0.0001;
-  o.frequency.value = 55; o2.frequency.value = 27.5;
-  o.connect(f); o2.connect(f); f.connect(g); g.connect(master); o.start(); o2.start();
+  const mo = [c.createOscillator(), c.createOscillator(), c.createOscillator()], mg = c.createGain(), mf = c.createBiquadFilter(); mo[0].type = 'sine'; mo[1].type = 'triangle'; mo[2].type = 'sine';
+  mf.type = 'lowpass'; mf.frequency.value = 3200; mg.gain.value = 0.0001; for (const o of mo) { o.connect(mf); o.start(); } mf.connect(mg); mg.connect(master);
+  const road = loopNoise(c), rf = c.createBiquadFilter(), rg = c.createGain(); rf.type = 'bandpass'; rf.frequency.value = 600; rf.Q.value = 0.7; rg.gain.value = 0.0001; road.connect(rf); rf.connect(rg); rg.connect(master); road.start();
+  const wind = loopNoise(c), wf = c.createBiquadFilter(), wg = c.createGain(); wf.type = 'lowpass'; wf.frequency.value = 380; wg.gain.value = 0.0001; wind.connect(wf); wf.connect(wg); wg.connect(master); wind.start(0, 0.7);
+  const av = c.createOscillator(), av2 = c.createOscillator(), ag = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); av.type = 'sine'; av2.type = 'sine'; ag.gain.value = 0.0001;
+  lfo.frequency.value = 5.5; lg.gain.value = 0.35; lfo.connect(lg); lg.connect(ag.gain); av.connect(ag); av2.connect(ag); ag.connect(master); av.start(); av2.start(); lfo.start();
   const h = {
-    set(x) { const v = Math.min(1, Math.max(0, x)), t = c.currentTime; o.frequency.setTargetAtTime(48 + v * 110, t, 0.08); o2.frequency.setTargetAtTime(24 + v * 55, t, 0.08); f.frequency.setTargetAtTime(380 + v * 900, t, 0.08); g.gain.setTargetAtTime(0.02 + v * 0.07, t, 0.08); },
-    stop() { const t = c.currentTime; g.gain.setTargetAtTime(0.0001, t, 0.05); setTimeout(() => { try { o.stop(); o2.stop(); } catch {} }, 250); live.delete(h); },
+    set(x) { const v = Math.min(1, Math.max(0, x)), t = c.currentTime, fr = 160 + v * 1500;
+      mo[0].frequency.setTargetAtTime(fr, t, 0.1); mo[1].frequency.setTargetAtTime(fr * 2.01, t, 0.1); mo[2].frequency.setTargetAtTime(fr * 3, t, 0.1);
+      mg.gain.setTargetAtTime(v < 0.01 ? 0.0001 : 0.012 + 0.03 * Math.min(1, v * 2.5), t, 0.1);
+      rf.frequency.setTargetAtTime(450 + v * 900, t, 0.1); rg.gain.setTargetAtTime(v < 0.01 ? 0.0001 : 0.015 + 0.2 * v, t, 0.12);
+      wg.gain.setTargetAtTime(v * v * 0.22, t, 0.15);
+      av.frequency.setTargetAtTime(240 + v * 900, t, 0.1); av2.frequency.setTargetAtTime((240 + v * 900) * 1.5, t, 0.1);
+      ag.gain.setTargetAtTime(v < 0.01 ? 0.0001 : v < 0.16 ? 0.06 : Math.max(0.0001, 0.06 * (0.3 - v) / 0.14), t, 0.15); },
+    stop() { const t = c.currentTime; for (const g of [mg, rg, wg, ag]) g.gain.setTargetAtTime(0.0001, t, 0.08); setTimeout(() => { for (const n of [...mo, road, wind, av, av2, lfo]) { try { n.stop(); } catch {} } }, 450); live.delete(h); },
   };
   live.add(h); h.set(0); return h;
 }
-// blinker: a steady tick-tock while on
+// blinker: the real tick-tock recording, once per half cycle (2.6 flashes a second, as the lights in the scenes)
 export function blinker() {
-  let on = true, flip = false;
-  const run = () => { if (!on) return; tone('square', flip ? 1500 : 1150, 0, 0.025, 0.08); flip = !flip; setTimeout(run, 380); };
+  let on = true; sample('blink');
+  const run = () => { if (!on) return; if (bufs.get('blink')) play('blink', { gain: 0.9 }); else tone('square', 1150, 0, 0.025, 0.08); setTimeout(run, 385); };
   const h = { stop() { on = false; live.delete(h); } }; live.add(h); run(); return h;
 }

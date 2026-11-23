@@ -2,7 +2,7 @@
 // Same scenarios, step texts and captions as the 2D diagram in viz.js (and the former legacy3d scene).
 import { THREE, fig3, chipGroup, chip, btn, sfx, Path, place, ease, reduced, VEHICLES } from '../kit3d.js';
 import { h } from '../ui.js';
-import { junction, waitZ } from './_junction.js';
+import { noseEye, junction, waitZ } from './_junction.js';
 
 export default function priority3d() {
   return fig3('מי עובר ראשון בצומת בלי תמרור?', 'לפי תקנה 64(א)(1) ו־64(א)(2)', ({ C, W, ctl, say }) => {
@@ -10,7 +10,7 @@ export default function priority3d() {
     W.env({ ground: 'grass', size: 200, shadowSize: 55 });
     const J = junction(C, W, { v: { one: false, n: 1 }, hz: { one: false, n: 1 }, L: 90 });
     view.min = 10; view.max = 80;
-    const me = W.vehicle('hatch', { name: 'me' }), other = W.vehicle('sedan', { name: 'other' }); C.scene.add(me, other);
+    const me = W.vehicle('ev', { name: 'me' }), other = W.vehicle('evsedan', { name: 'other' }); C.scene.add(me, other);
     W.label(me, 'אתה', { size: 1.4, bg: 'rgba(42,111,219,.95)' });
     const LM = J.lane.v('nb', 0), LO = J.lane.h('wb', 0), LS = J.lane.v('sb', 0), mw = 24 - waitZ(J, VEHICLES.hatch.L), ow = 24 - waitZ(J, VEHICLES.sedan.L);
     const SC = {
@@ -34,6 +34,7 @@ export default function priority3d() {
     };
     C.onDispose(() => { bl?.stop(); eng?.stop(); J.dispose(); });
     C.onFrame((dt, now) => {
+      if (view.driver) noseEye(me);
       W.blinkTick(me, now); W.followSun(0, 0);
       if (run) { run.t = Math.min(1, run.t + dt / run.dur); const k = ease(run.t); pose.me = run.a0 + (run.a1 - run.a0) * k; pose.other = run.b0 + (run.b1 - run.b0) * k;
         place(me, S().me.at(pose.me)); place(other, S().other.at(pose.other));

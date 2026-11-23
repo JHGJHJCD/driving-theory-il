@@ -5,3 +5,9 @@
 
 Roads, markings, signs, traffic lights, the bus and the motorcycle are built in js/kit3d.js (own code, MIT).
 The selection script is tools/assets3d/pack.py.
+
+Sounds (assets3d/audio, converted to mono OGG):
+- blink.ogg (car blinker), door-open.ogg, door-close.ogg – "Car blinker SFX" and "Car Doors SFX" by looneybits, CC0 (opengameart.org/content/car-blinker-sfx, content/cardoorsfx).
+- traffic.ogg – excerpt of "High traffic road sounds" by IgnasD, CC0 (opengameart.org/content/high-traffic-road-sounds).
+- squeal.ogg – "Car tire squeal skid loop" by audible-edge (Tom Haigh), CC BY 3.0 (opengameart.org/content/car-tire-squeal-skid-loop; creativecommons.org/licenses/by/3.0/); converted to mono OGG, level-normalised.
+The electric motor, tyre/wind noise, pedestrian-warning hum and horn are synthesized in js/sfx.js.

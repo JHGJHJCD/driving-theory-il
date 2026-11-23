@@ -690,7 +690,7 @@ function about() {
       h('li', {}, ext('https://www.gov.il/en/service/apply_for_new_driver_drivers_license', 'gov.il – Apply for a new driver licence')),
       h('li', {}, h('span', { text: t('ab.code') + ': ' }), ext('https://github.com/dudidd-wq/theory-il', 'github.com/dudidd-wq/theory-il'))),
     h('p', { class: 'small muted', text: 'Font: Rubik – SIL Open Font License 1.1 (fonts/OFL-Rubik.txt).' }),
-    h('p', { class: 'small muted', text: '3D models: Kenney (Car Kit, City Kits, Mini Characters, Train Kit) – CC0, via opengameart.org; three.js – MIT (assets3d/LICENSE.txt).' }));
+    h('p', { class: 'small muted', text: '3D models and sounds: Kenney (Car Kit, City Kits, Mini Characters, Train Kit), looneybits, IgnasD – CC0; tyre squeal by audible-edge (Tom Haigh) – CC BY 3.0, all via opengameart.org; three.js – MIT (assets3d/LICENSE.txt).' }));
 }
 
 // ---------- boot ----------

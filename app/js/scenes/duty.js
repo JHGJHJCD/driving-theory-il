@@ -16,7 +16,7 @@ export default function duty3d() {
     setup({ C, W, tw }) {
       W.env({ ground: 'grass', size: 200, shadowSize: 45 });
       W.roadZ({ z0: -110, z1: 110, centre: 'dash' }); W.street({ z0: -110, z1: 110, xLeft: -14, xRight: 14, seed: 8 });
-      const car = W.vehicle('sedan'), KX = 2.45, PV = 5.6, PY = 0.16; car.position.set(KX, 0, 0); C.scene.add(car);
+      const car = W.vehicle('evsedan'), KX = 2.45, PV = 5.6, PY = 0.16; car.position.set(KX, 0, 0); C.scene.add(car);
       const mk = (i, x, z, ry) => { const p = W.person(i, { anim: 'idle' }); p.position.set(x, PY, z); p.rotation.y = ry; C.scene.add(p); return p; };
       const driver = mk(1, PV, -2.6, -Math.PI / 2), p1 = mk(6, PV + 0.6, 2.6, -Math.PI / 2), p2 = mk(3, PV + 1.4, 3.4, -Math.PI / 2), p3 = mk(8, 3.55, 0.9, -Math.PI / 2);
       p3.position.y = 0.0;

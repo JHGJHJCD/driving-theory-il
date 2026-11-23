@@ -10,6 +10,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { GLTFLoader } from '../vendor/jsm/GLTFLoader.js';
 import { clone as cloneSkinned } from '../vendor/jsm/SkeletonUtils.js';
 import { RoomEnvironment } from '../vendor/jsm/RoomEnvironment.js';
+import { buildEV } from './ev3d.js';
 import { h } from './ui.js';
 import * as sfx from './sfx.js';
 
@@ -145,6 +146,7 @@ export const VEHICLES = {
   lorry: { f: 'cars/garbage-truck', L: 8.5, W: 2.5, rot: Math.PI }, tractor: { f: 'cars/tractor', L: 3.6, W: 1.9, rot: Math.PI },
   train: { f: 'rail/train-electric-city-a', L: 14, W: 3.0, rot: Math.PI }, loco: { f: 'rail/train-locomotive-a', L: 14, W: 3.0, rot: Math.PI },
 };
+const EV_PAINT = [0x6c7077, 0xe9ecef, 0x2b4a8c, 0xb3262e, 0x1c1e22, 0x9aa3ad]; let evCount = 0;   // electric cars get different paint in turn
 const PEOPLE = ['character-male-a', 'character-male-b', 'character-male-c', 'character-male-d', 'character-male-e', 'character-male-f', 'character-female-a', 'character-female-b', 'character-female-c', 'character-female-d', 'character-female-e', 'character-female-f'];
 
 // ---------------------------------------------------------------- textures drawn here (no image downloads)
@@ -238,6 +240,7 @@ export function world(C) {
     // ---------- vehicles
     vehicle(key, { name, tint, night = false } = {}) {
       if (key === 'bus' || key === 'schoolbus') return W.bus({ school: key === 'schoolbus', color: tint, name });
+      if (key === 'ev' || key === 'evsedan') { const e = buildEV({ variant: key === 'ev' ? 'suv' : 'sedan', color: tint ?? EV_PAINT[evCount++ % EV_PAINT.length] }); e.name = name || key; e.userData.key = key; e.userData.blinkSide = null; if (night) for (const m of e.userData.head) m.emissiveIntensity = 2.4; return e; }
       const spec = VEHICLES[key] || VEHICLES.sedan, g = new THREE.Group(); g.name = name || key; g.userData = { key, brake: [], blink: { L: [], R: [] }, head: [], blinkSide: null, eye: [-0.5, 1.4, -spec.L * 0.18], dims: { L: spec.L, W: spec.W, H: 1.6 }, wheels: [] };
       const inner = new THREE.Group(); g.add(inner);
       const p = loadModel(spec.f).then(gl => {
@@ -247,7 +250,7 @@ export function world(C) {
         const wrap = new THREE.Group(); m.position.set(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2); wrap.add(m);
         wrap.scale.set(rotated ? s : sx, s, rotated ? sx : s); const outer = new THREE.Group(); outer.add(wrap); outer.rotation.y = spec.rot; inner.add(outer);
         // cars of the same file get different colours through a light tint on the body material only
-        const H = sz.y * s; g.userData.dims.H = H; g.userData.eye = [-spec.W * 0.27, Math.min(H * 0.9, 1.5), -spec.L * 0.12];
+        const H = sz.y * s; g.userData.dims.H = H; g.userData.eye = [-spec.W * 0.25, H * 0.95, -spec.L * 0.42];     // bonnet view: just behind the nose, so the (opaque) cabin never fills the picture
         if (tint) wrap.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData = {}; o.material.color.set(tint); } });
         shadows(outer);
         const mk = (c, em, ei) => new THREE.MeshStandardMaterial({ color: c, emissive: em, emissiveIntensity: ei, roughness: .4 });

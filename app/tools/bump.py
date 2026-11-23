@@ -24,7 +24,7 @@ a3 = []
 for d in ('assets3d', 'js/scenes', 'vendor/jsm'):
     for r, _, fs in os.walk(p(d)):
         for f in sorted(fs):
-            if f.endswith(('.glb', '.png', '.js')): a3.append(os.path.relpath(os.path.join(r, f), R).replace(os.sep, '/'))
+            if f.endswith(('.glb', '.png', '.js', '.ogg')): a3.append(os.path.relpath(os.path.join(r, f), R).replace(os.sep, '/'))
 a3.sort()
 open(p('sw-assets.js'), 'a').write('self.A3D = ' + json.dumps(a3) + ';\n')
 print(new, len(imgs), 'images', len(a3), '3d files')

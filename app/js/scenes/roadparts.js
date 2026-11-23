@@ -22,7 +22,7 @@ export default function roadparts3d() {
     W.trees([[-14, -40], [-17, 10], [-13, 55], [15, -55], [14, -5], [17, 40], [-20, -70], [19, 75]]);
     // traffic: northbound (toward -Z) on the east side, southbound on the west side
     const cars = [];
-    [[cwR + LANE_W / 2, 'sedan', -1, 0], [cwR - LANE_W / 2, 'suv', -1, 60], [cwL - LANE_W / 2, 'van', 1, 25], [cwL + LANE_W / 2, 'taxi', 1, 110]].forEach(([x, k, dir, off]) => {
+    [[cwR + LANE_W / 2, 'evsedan', -1, 0], [cwR - LANE_W / 2, 'ev', -1, 60], [cwL - LANE_W / 2, 'van', 1, 25], [cwL + LANE_W / 2, 'taxi', 1, 110]].forEach(([x, k, dir, off]) => {
       const c = W.vehicle(k); c.userData.dir = dir; c.userData.off = off; c.position.x = x; c.rotation.y = dir < 0 ? 0 : Math.PI; scene.add(c); cars.push(c); });
     C.onFrame((dt, now) => { for (const c of cars) { const z = (now * 9 + c.userData.off) % L; c.position.z = c.userData.dir < 0 ? L / 2 - z : -L / 2 + z; } });
     // highlight overlays
