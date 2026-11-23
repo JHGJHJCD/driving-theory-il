@@ -1,11 +1,11 @@
 name: Preview site (GitHub Pages)
-# One-time setup by the repo owner: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+# One-time setup by the repo owner (a single click): Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
 # Pages sites are public. The supplied Model 3 file (app/assets3d/cars/ev-m3.glb) has an unconfirmed licence and is a branded vehicle,
 # so it is NOT published unless the repository variable INCLUDE_M3 is set to "true" (Settings -> Secrets and variables -> Actions -> Variables).
 # Without it the site shows the built-in generic electric car.
 on:
   push:
-    branches: [main, claude/serene-ptolemy-dtfzrz]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,8 +16,6 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
-    # runs only after the owner enabled Pages (see above) and set the repository variable PAGES_ENABLED to "true"
-    if: ${{ vars.PAGES_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
