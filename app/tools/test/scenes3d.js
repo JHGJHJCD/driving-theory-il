@@ -5,6 +5,8 @@ const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const base = process.env.BASE || 'http://127.0.0.1:8787/';
 const keys = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSync(path.join(__dirname, '../../js/scenes')).filter(f => f.endsWith('.js') && !f.startsWith('_')).map(f => f.slice(0, -3)).sort();
+const shard = (process.env.SHARD || '').match(/^(\d+)\/(\d+)$/);   // SHARD=1/4 runs every 4th scene starting at the 1st (for parallel CI jobs)
+if (shard) { const i = +shard[1] - 1, n = +shard[2]; for (let j = keys.length - 1; j >= 0; j--) if (j % n !== i) keys.splice(j, 1); }
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   let fail = 0;

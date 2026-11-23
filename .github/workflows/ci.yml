@@ -1,0 +1,55 @@
+name: CI
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  data:
+    name: Data checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install scikit-learn
+      - run: python3 app/tools/test/data_test.py
+  e2e:
+    name: End-to-end (2D diagrams, accessibility)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Install test tools
+        run: |
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright-core axe-core
+      - name: Serve and run
+        working-directory: app
+        run: |
+          python3 -m http.server 8787 --bind 127.0.0.1 >/dev/null 2>&1 &
+          sleep 2
+          NODE_PATH=/tmp/pw/node_modules AXE=/tmp/pw/node_modules/axe-core/axe.min.js node tools/test/e2e.js
+  scenes:
+    name: 3D scenes (${{ matrix.shard }}/5)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Install Playwright (with Chromium)
+        run: |
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright && npx playwright install --with-deps chromium
+      - name: Serve and run
+        working-directory: app
+        run: |
+          python3 -m http.server 8787 --bind 127.0.0.1 >/dev/null 2>&1 &
+          sleep 2
+          NODE_PATH=/tmp/pw/node_modules SHARD=${{ matrix.shard }}/5 node tools/test/scenes3d.js
