@@ -360,6 +360,29 @@ export function world(C) {
       return g; },
 
     // ---------- people (animated; anim: 'walk' | 'idle' | 'sprint' | 'sit')
+    // a model fitted to a real-world height, standing on y = 0, centred on (x, z); static (no animation)
+    fit(path, { h: hh = 1, x = 0, z = 0, ry = 0, dropFlat = false, fallback, fbScale = 1 } = {}) {
+      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g);
+      track(loadModel(path).then(gl => { const m = gl.scene.clone(true);
+        if (dropFlat) { const b0 = new THREE.Box3().setFromObject(m), H = b0.max.y - b0.min.y, rm = [];
+          m.traverse(o => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); if (b.max.y - b.min.y < 0.05 * H && b.max.x - b.min.x > 0.2 * H) rm.push(o); } }); rm.forEach(o => o.parent.remove(o)); }
+        const b = new THREE.Box3().setFromObject(m), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()), w = new THREE.Group();
+        m.position.set(-c.x, -b.min.y, -c.z); w.add(m); w.scale.setScalar(hh / Math.max(0.001, sz.y)); shadows(w); g.add(w);
+      }).catch(() => { if (!fallback) return; return loadModel(fallback).then(gl => { const m = gl.scene.clone(true); m.scale.setScalar(fbScale); shadows(m); g.add(m); }).catch(() => {}); }));
+      return g; },
+    // Israeli street trees: palms, potted cypress and the stylised trees, in turn
+    streetTree(r, { x, z }) { const k = r();
+      if (k < 0.35) return W.fit('prop2/palm_tall_01', { h: 8.5 + r() * 3, x, z, ry: r() * 6, dropFlat: true, fallback: 'city/tree-large', fbScale: 9 });
+      if (k < 0.5) return W.fit('prop2/cypress_01', { h: 6 + r() * 2, x, z, ry: r() * 6, fallback: 'city/tree-small', fbScale: 9 });
+      return W.prop(r() < 0.5 ? 'city/tree-large' : 'city/tree-small', { scale: 8 + r() * 3, x, z, ry: r() * 6 }); },
+    // a walking pedestrian from a static scan: it glides along its path with a small step bounce while 'walk' is on (front = +Z like the animated characters)
+    walker(path, { h: hh = 1.7, fallbackIndex = 0 } = {}) {
+      const g = new THREE.Group(); let walking = false, inner = null; g.userData = { play(n) { walking = n === 'walk'; }, anim: 'idle' };
+      const fb = W.person(fallbackIndex, { anim: 'idle' }); g.add(fb); g.userData.play = n => { walking = n === 'walk'; fb.userData.play?.(n); };
+      track(loadModel(path).then(gl => { const m = gl.scene.clone(true), b = new THREE.Box3().setFromObject(m), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()), w = new THREE.Group();
+        m.position.set(-c.x, -b.min.y, -c.z); w.add(m); w.scale.setScalar(hh / Math.max(0.001, sz.y)); shadows(w); inner = w; g.remove(fb); g.add(w); }).catch(() => {}));
+      let t = 0; C.onFrame(dt => { if (!inner) return; t += dt * (walking ? 8 : 0); inner.position.y = walking ? Math.abs(Math.sin(t)) * 0.05 : 0; inner.rotation.z = walking ? Math.sin(t) * 0.03 : 0; });
+      return g; },
     person(i = 0, { anim = 'idle', height = 1.75 } = {}) {
       const g = new THREE.Group(), key = typeof i === 'string' ? i : PEOPLE[i % PEOPLE.length]; g.userData = { play() {}, anim };
       const p = loadModel('people/' + key).then(gl => {
@@ -381,7 +404,7 @@ export function world(C) {
       for (const side of [-1, 1]) { let z = z0 + 6; while (z < z1 - 6) {
         const shop = r() < 0.55, path = (shop ? SHOPS : HOUSES)[Math.floor(r() * (shop ? SHOPS : HOUSES).length)], sc = shop ? 9 + r() * 2 : 8.5 + r() * 2, wdt = (shop ? 0.9 : 1.2) * sc * 0.95;
          W.prop(path, { scale: sc, x: (side < 0 ? xLeft - 9 - r() * 3 : xRight + 9 + r() * 3), z: z + wdt / 2, ry: side < 0 ? Math.PI / 2 : -Math.PI / 2 }); z += wdt + 1.5 + r() * 3 / density; }
-        for (let t = z0; t < z1; t += 11 + r() * 8) W.prop(r() < .5 ? 'city/tree-large' : 'city/tree-small', { scale: 8 + r() * 3, x: (side < 0 ? xLeft - 1.5 : xRight + 1.5), z: t, ry: r() * 6 }); }
+        for (let t = z0; t < z1; t += 11 + r() * 8) W.streetTree(r, { x: (side < 0 ? xLeft - 1.5 : xRight + 1.5), z: t }); }
     },
     trees(points, { scale = 9 } = {}) { const r = rng(9); for (const [x, z] of points) W.prop(r() < .5 ? 'city/tree-large' : 'city/tree-small', { scale: scale + r() * 2, x, z, ry: r() * 6 }); },
 
@@ -399,7 +422,7 @@ export function world(C) {
       const L = ['red', 'yellow', 'green'].map((c, i) => { const col = { red: 0xff2a1a, yellow: 0xffc000, green: 0x20e060 }[c]; const m = new THREE.MeshStandardMaterial({ color: 0x222, emissive: col, emissiveIntensity: 0, roughness: .3 }); const d = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), m); d.position.set(0, 4.75 - i * 0.35, 0.175); g.add(d); return [c, m, col]; });
       const set = s => { for (const [c, m, col] of L) { m.emissiveIntensity = c === s ? 2.2 : 0; m.color.setHex(c === s ? col : 0x222222); } };
       set(state); shadows(g); scene.add(g); return { g, set }; },
-    cone(x, z) { return W.prop('cars/cone', { scale: 1, x, z }); },
+    cone(x, z) { return W.fit('prop2/cone_orange_01', { h: 0.75, x, z, fallback: 'cars/cone', fbScale: 1 }); },
     barrier(x, z, ry = 0) { return W.prop('roads/construction-barrier', { scale: 9, x, z, ry }); },
     // a coloured translucent zone on the road (used to show "no stopping here", gaps, etc.)
     zone(x, z, w, d, color, { opacity = 0.5, y = 0.06 } = {}) { return W.flat(x, z, w, d, color, { y, opacity, emissive: color }); },
