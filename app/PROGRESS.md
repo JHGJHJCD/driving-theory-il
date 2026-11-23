@@ -263,3 +263,15 @@ Scope (Dudi, 26.10 13:46 UTC+2): every B and A question taught from an official 
 - v1.22.1 b: sign dictionary – word-only search (placeholder 'חפשו לפי מילה, למשל חנייה', numbers accepted silently), browse-by-family default, 'תמרורים שנתקלתי בהם בתרגול' from wrong answers/unknown flashcards
 - v1.22.1 c: tests (no number input anywhere in js, no-digit placeholder, FAMWHY hints match bank answers; e2e picker/dictionary/no-number sweep) + About 'pick' + README + COVERAGE
 - v1.22.1 release: SW VERSION 1.22.1, COVERAGE headline v1.22.1; data checks pass; local e2e 378 passed, 0 failed
+
+## v1.25 – real 3D scenes (תלת-ממד אמיתי)
+(v1.23–v1.24 were not logged here.)
+- [x] js/kit3d.js: shared 3D toolkit – GLTF loading with cache, shadows, HDRI sky + PBR asphalt (Poly Haven, CC0), Israeli-style road markings (zebra, stop line, give-way teeth, dashes), signs, traffic lights, people (animated Kenney characters), buses/motorcycles/electric cars built in code, driver (bonnet) view, camera clamp
+- [x] assets3d/: Kenney Car Kit, City Kits, Mini Characters, Train Kit (CC0) – subset chosen by tools/assets3d/pack.py; LICENSE.txt lists every source and author (tyre squeal is CC BY 3.0 – audible-edge)
+- [x] js/scenes/: 25 scenes – crosswalk, priority, leftturn, stopdist, gap, speed, roadparts, overtake, parking, rail, blind, accident, brakes, blowout, motojx, moto, startcar, lamps, hands, load, kids, taxi, tractor, duty, dims. Captions, numbers and sources identical to the 2D diagrams (viz.js); registry js/viz3d.js; old 6 scenes kept in legacy3d.js as fallback
+- [x] electric cars (js/ev3d.js, generic crossover/saloon, no brand marks); other vehicles from the Kenney kit
+- [x] sound (js/sfx.js): real recordings for blinker, doors, tyre squeal, traffic (assets3d/audio); synthesized electric drivetrain (motor whine, tyre and wind noise, low-speed pedestrian-warning hum); horn pair 400/500 Hz
+- [x] SW: models, scenes, textures, sounds cached at install (best effort, tools/bump.py writes sw-assets.js A3D)
+- [x] tests: tools/test/scenes3d.js (every scene loads, draws, all buttons clickable, no console errors; run with a local server and NODE_PATH to playwright); data_test VIZ regex fixed; e2e.js finds playwright via NODE_PATH/PWCORE
+- [x] docs/BANK_COMPARE_2026.md: data.gov.il bank last modified 2021-12-05; MoE Sept-2026 bank compared (approximate)
+- Known limits: models are stylized low-poly, not photoreal; children's seat/cockpit scenes are schematic; persons are chibi proportions.

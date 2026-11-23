@@ -1,6 +1,6 @@
 // End-to-end tests: node tools/test/e2e.js [baseURL]   (default http://127.0.0.1:8787/)
 // Runs every flow on a mobile (390x844, touch) and a desktop (1280x860) profile, plus axe-core on the main screens.
-const { chromium } = require('/usr/local/lib/pnpm/5/.pnpm/playwright-core@1.59.1/node_modules/playwright-core');
+const { chromium } = (() => { for (const m of [process.env.PWCORE, '/usr/local/lib/pnpm/5/.pnpm/playwright-core@1.59.1/node_modules/playwright-core', 'playwright-core', 'playwright']) { if (!m) continue; try { return require(m); } catch {} } throw new Error('playwright not found (set PWCORE or NODE_PATH)'); })();
 const fs = require('fs'), path = require('path');
 const BASE = process.argv[2] || 'http://127.0.0.1:8787/';
 const AXE = fs.readFileSync(process.env.AXE || '/tmp/pw/node_modules/axe-core/axe.min.js', 'utf8');

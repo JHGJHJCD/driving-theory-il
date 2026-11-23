@@ -77,7 +77,7 @@ export function core(canvas, opts = {}) {
     }
     raf = requestAnimationFrame(frame);
   }
-  const C = { THREE, scene, camera, renderer, view, frames: 0, onFrame: f => updaters.push(f), onDispose: f => cleaners.push(f), dispose };
+  const C = { THREE, scene, camera, renderer, view, pmrem: pm, envRT, frames: 0, onFrame: f => updaters.push(f), onDispose: f => cleaners.push(f), dispose };
   raf = requestAnimationFrame(frame);
   return C;
 }
@@ -160,6 +160,16 @@ const noise = (x, w, h2, n, col, a, r) => { for (let i = 0; i < n; i++) { x.fill
 const asphaltTex = () => canvasTex('asphalt', 512, 512, (x, w, h2) => { const r = rng(7); x.fillStyle = '#42454b'; x.fillRect(0, 0, w, h2);
   for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(${r() < .5 ? '255,255,255' : '0,0,0'},${(r() * .05).toFixed(3)})`; x.beginPath(); x.arc(r() * w, r() * h2, 20 + r() * 60, 0, 7); x.fill(); }
   noise(x, w, h2, 5000, 'rgba(255,255,255,A)', .22, r); noise(x, w, h2, 5000, 'rgba(0,0,0,A)', .35, r); });
+// real sky (Poly Haven HDRI "Kloofendal 48d Partly Cloudy", CC0): reflections on the cars and the background of daytime scenes
+let hdrP = null;
+const skyHDR = () => (hdrP ||= import('../vendor/jsm/RGBELoader.js').then(m => new m.RGBELoader().loadAsync(new URL('../assets3d/tex/sky-day.hdr', import.meta.url).href)).then(t => { t.mapping = THREE.EquirectangularReflectionMapping; return t; }).catch(e => { hdrP = null; throw e; }));
+// real PBR asphalt (Poly Haven "Asphalt 02", CC0): diffuse / normal / roughness, loaded once and shared
+let pbr = null;
+function asphaltPBR() {
+  if (pbr) return pbr; const tl = new THREE.TextureLoader(), u = n => new URL('../assets3d/tex/' + n, import.meta.url).href;
+  const ld = (n, srgb) => tl.loadAsync(u(n)).then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.userData = { shared: true }; return t; });
+  return (pbr = Promise.all([ld('asphalt-diff.jpg', true), ld('asphalt-nor.jpg'), ld('asphalt-rough.jpg')]).then(([diff, nor, rough]) => ({ diff, nor, rough })).catch(e => { pbr = null; throw e; }));
+}
 const grassTex = () => canvasTex('grass', 512, 512, (x, w, h2) => { const r = rng(11); x.fillStyle = '#6a9a4a'; x.fillRect(0, 0, w, h2);
   for (let i = 0; i < 70; i++) { x.fillStyle = `rgba(${r() < .5 ? '40,90,30' : '150,190,90'},${(r() * .12).toFixed(3)})`; x.beginPath(); x.arc(r() * w, r() * h2, 14 + r() * 50, 0, 7); x.fill(); }
   noise(x, w, h2, 6000, 'rgba(30,80,20,A)', .35, r); noise(x, w, h2, 3000, 'rgba(190,220,120,A)', .3, r); });
@@ -185,6 +195,7 @@ export function world(C) {
       const night = sky === 'night', dusk = sky === 'dusk';
       const [a, b, c] = night ? ['#070b18', '#1a2540', '#2a3350'] : dusk ? ['#6d86b8', '#f0b48a', '#f6d8a8'] : ['#5b9be0', '#a9cdf0', '#e4f0fa'];
       scene.background = skyTex(a, b, c); if (fog) scene.fog = new THREE.Fog(new THREE.Color(c), 140, 520);
+      if (!night && !dusk) track(skyHDR().then(tex => { if (C.disposed) return; const rt = C.pmrem.fromEquirectangular(tex); C.envRT.dispose(); C.envRT = rt; scene.environment = rt.texture; scene.background = tex; scene.backgroundBlurriness = 0.02; scene.fog?.color.set(0xcfdceb); }).catch(() => {}));
       const hemi = new THREE.HemisphereLight(night ? 0x5a6cae : 0xdfeaff, night ? 0x1b2216 : 0x6d7f55, night ? 0.5 : 1.05); scene.add(hemi);
       const sun = new THREE.DirectionalLight(night ? 0x8fa3ff : dusk ? 0xffd2a0 : 0xfff3e0, night ? 0.35 : 2.4); sun.position.set(...sunDir); sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -shadowSize; sc.right = shadowSize; sc.top = shadowSize; sc.bottom = -shadowSize; sc.near = 1; sc.far = 220; sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
@@ -196,8 +207,10 @@ export function world(C) {
     followSun(x, z) { W.sun.position.set(x + 30, 55, z + 22); W.sun.target.position.set(x, 0, z); },
 
     // ---------- road surface and markings
-    asphalt(x, z, w, d, { y = 0.012, ry = 0 } = {}) { const t = asphaltTex().clone(); t.needsUpdate = true; t.repeat.set(w / 6, d / 6);
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, metalness: 0 })); m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m; },
+    asphalt(x, z, w, d, { y = 0.012, ry = 0 } = {}) { const rep = [w / 5, d / 5];
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: 0x4b4e54, roughness: 0.9, metalness: 0, envMapIntensity: 0.6 }));
+      track(asphaltPBR().then(T => { const tx = t => { const c = t.clone(); c.repeat.set(...rep); c.needsUpdate = true; return c; }; const mt = m.material; mt.color.set(0xffffff); mt.map = tx(T.diff); mt.normalMap = tx(T.nor); mt.normalScale.set(0.9, 0.9); mt.roughnessMap = tx(T.rough); mt.roughness = 1; mt.needsUpdate = true; }).catch(() => {}));
+      m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m; },
     flat(x, z, w, d, color, { y = 0.03, opacity = 1, emissive = 0, ry = 0, rough = 0.7 } = {}) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color, roughness: rough, transparent: opacity < 1, opacity, emissive, emissiveIntensity: emissive ? 0.6 : 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, depthWrite: opacity >= 1 }));
       m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m; },
     line(x, z0, z1, { w = 0.16, color = 0xf4f4f0, y = 0.03 } = {}) { return W.flat(x, (z0 + z1) / 2, w, Math.abs(z1 - z0), color, { y }); },          // solid line along Z

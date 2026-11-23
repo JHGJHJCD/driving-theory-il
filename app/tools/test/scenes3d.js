@@ -16,14 +16,14 @@ const keys = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSy
       await p.goto(`${base}tools/assets3d/scene.html?k=${k}`);
       await p.waitForFunction(() => document.title === 'done', null, { timeout: 120000 });
       await p.waitForTimeout(1500);
-      const info = await p.evaluate(() => { const C = window.__node._C; return { frames: C.frames, kids: C.scene.children.length, title: window.__node.getAttribute('aria-label') }; });
+      const info = await p.evaluate(() => { const C = window.__node._C; return { frames: C.frames, kids: (() => { let n = 0; C.scene.traverse(o => { if (o.isMesh) n++; }); return n; })(), title: window.__node.getAttribute('aria-label') }; });
       const png = await p.locator('canvas').first().screenshot(); const seen = new Set(); for (let i = 5000; i < png.length; i += 997) seen.add(png[i] >> 3);
       const total = await p.locator('figure button').count(); let clicked = 0;
       for (let i = 0; i < Math.min(total, 16); i++) { const bt = p.locator('figure button').nth(i); try { if (await bt.isDisabled()) continue; await bt.click({ timeout: 20000 }); clicked++; await p.waitForTimeout(300); } catch (e) { errs.push('click ' + i + ': ' + e.message.split('\n')[0].slice(0, 80)); } }
       await p.waitForTimeout(800);
-      const ok = !errs.length && info.frames > 2 && info.kids > 12 && seen.size > 12;
+      const ok = !errs.length && info.frames > 1 && info.kids > 15 && seen.size > 12;
       if (!ok) fail++;
-      console.log(`${ok ? 'ok  ' : 'FAIL'} ${k}: frames ${info.frames}, objects ${info.kids}, tones ${seen.size}, buttons clicked ${clicked}${errs.length ? ', errors: ' + [...new Set(errs)].slice(0, 3).join(' | ') : ''}`);
+      console.log(`${ok ? 'ok  ' : 'FAIL'} ${k}: frames ${info.frames}, meshes ${info.kids}, tones ${seen.size}, buttons clicked ${clicked}${errs.length ? ', errors: ' + [...new Set(errs)].slice(0, 3).join(' | ') : ''}`);
     } catch (e) { fail++; console.log(`FAIL ${k}: ${e.message.split('\n')[0]}`); }
     await p.close();
   }

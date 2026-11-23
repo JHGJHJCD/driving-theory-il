@@ -11,3 +11,5 @@ Sounds (assets3d/audio, converted to mono OGG):
 - traffic.ogg – excerpt of "High traffic road sounds" by IgnasD, CC0 (opengameart.org/content/high-traffic-road-sounds).
 - squeal.ogg – "Car tire squeal skid loop" by audible-edge (Tom Haigh), CC BY 3.0 (opengameart.org/content/car-tire-squeal-skid-loop; creativecommons.org/licenses/by/3.0/); converted to mono OGG, level-normalised.
 The electric motor, tyre/wind noise, pedestrian-warning hum and horn are synthesized in js/sfx.js.
+
+Textures (assets3d/tex), from Poly Haven (polyhaven.com), CC0: "Asphalt 02" by Rob Tuytel (diffuse, normal, roughness; re-encoded JPEG); HDRI "Kloofendal 48d Partly Cloudy (Pure Sky)" by Greg Zaal (original) and Jarod Guest (sky edits).

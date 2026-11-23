@@ -6,14 +6,15 @@ const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness
 
 // extrude a side profile [[z,y],...] over a width; the result is centred on x = 0
 function body(points, width, bevel) {
-  const sh = new THREE.Shape(); points.forEach(([z, y], i) => (i ? sh.lineTo(z, y) : sh.moveTo(z, y))); sh.closePath();
+  const curve = new THREE.CatmullRomCurve3(points.map(([z, y]) => new THREE.Vector3(z, y, 0)), true, 'centripetal'), pts = curve.getPoints(points.length * 14);   // rounded corners
+  const sh = new THREE.Shape(); pts.forEach((p, i) => (i ? sh.lineTo(p.x, p.y) : sh.moveTo(p.x, p.y))); sh.closePath();
   const g = new THREE.ExtrudeGeometry(sh, { depth: width - bevel * 2, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel * 0.9, bevelSegments: 5, curveSegments: 8 });
   g.translate(0, 0, -(width - bevel * 2) / 2); g.rotateY(-Math.PI / 2); g.computeVertexNormals(); return g;
 }
 
 export function buildEV({ color = 0x6c7077, variant = 'suv' } = {}) {
   const L = variant === 'sedan' ? 4.95 : 4.75, Wd = 1.94, g = new THREE.Group();
-  const paint = std(color, { roughness: 0.28, metalness: 0.55, clearcoat: undefined }), glass = std(0x0d1218, { roughness: 0.08, metalness: 0.7, transparent: true, opacity: 0.9 }), dark = std(0x16181c, { roughness: 0.7, metalness: 0.1 });
+  const paint = std(color, { roughness: 0.28, metalness: 0.55 }), glass = std(0x0d1218, { roughness: 0.08, metalness: 0.7, transparent: true, opacity: 0.9 }), dark = std(0x16181c, { roughness: 0.7, metalness: 0.1 });
   const add = (geo, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
   const f = -L / 2, r = L / 2;
   // lower body: closed nose, long smooth hood, high rear deck
