@@ -264,6 +264,7 @@ input[type="checkbox"], input[type="radio"] { min-width: 24px; min-height: 24px;
 .vz-svg { display: block; width: 100%; height: auto; max-height: 260px; }
 .vz-ctl { display: grid; gap: 6px; margin: 10px 0 4px; }
 .vz-ctl input[type="range"] { width: 100%; accent-color: var(--primary); min-height: 32px; height: 32px; }
+#sfx-vol { width: 100%; min-height: 32px; accent-color: var(--primary); }
 /* v1.15 (review #11): every widget control is a ≥24px tap target */
 .vz-ctl input[type="checkbox"], .viz input[type="checkbox"] { width: 24px; height: 24px; min-width: 24px; accent-color: var(--primary); }
 .vz-ctl input[type="number"], .vz-ctl input[type="search"], .viz input[type="search"], .viz input[type="number"] { min-height: 44px; }
