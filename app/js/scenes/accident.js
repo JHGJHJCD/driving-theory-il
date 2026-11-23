@@ -21,7 +21,7 @@ export default function accident3d() {
     W.label(me, 'אתה', { size: 1.3, bg: 'rgba(42,111,219,.95)' });
     crashA.position.set(LANE + 0.1, 0, ZC); crashA.rotation.y = 0.45; crashB.position.set(LANE - 1.9, 0, ZC - 4.2); crashB.rotation.y = -0.8; crashB.rotation.z = 0.02;
     hurt.position.set(LANE + 2.6, 0, ZC - 1.5); hurt.rotation.y = -1.2;
-    const tri = warningTriangle(W, LANE, 20, 0, 1.8); tri.visible = false;
+    const tri = warningTriangle(W, LANE, 17.5, 0, 1.8); tri.visible = false;
     for (const [x, z] of [[LANE + 1.2, ZC + 4.5], [LANE - 0.4, ZC + 6]]) W.cone(x, z);
     const aMe = A.add(me, { x: LANE, z: 55, h: 0 }), aAmb = A.add(amb, { x: -LANE, z: -112, h: Math.PI }), aPol = A.add(pol, { x: -LANE, z: -112, h: Math.PI }),
       aDrv = A.add(driver, { x: LANE - 1.6, z: 12, h: 0 }), aOth = A.add(other, { x: LANE - 2.6, z: ZC - 6.6, h: 0.6 });
