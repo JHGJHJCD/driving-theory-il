@@ -275,3 +275,5 @@ Scope (Dudi, 26.10 13:46 UTC+2): every B and A question taught from an official 
 - [x] tests: tools/test/scenes3d.js (every scene loads, draws, all buttons clickable, no console errors; run with a local server and NODE_PATH to playwright); data_test VIZ regex fixed; e2e.js finds playwright via NODE_PATH/PWCORE
 - [x] docs/BANK_COMPARE_2026.md: data.gov.il bank last modified 2021-12-05; MoE Sept-2026 bank compared (approximate)
 - Known limits: models are stylized low-poly, not photoreal; children's seat/cockpit scenes are schematic; persons are chibi proportions.
+- [x] v1.25.1: electric car = supplied Model 3 (assets3d/cars/ev-m3.glb, 3.7 MB, ~90k triangles, meshopt-compressed); its own lamps drive brake/indicator/head states; built-in generic EV (js/ev3d.js) remains the fallback; licence of the model unconfirmed (see assets3d/LICENSE.txt); tools/assets3d/ev_extract.mjs + ev_finish.mjs reproduce the conversion
+- [ ] waiting for the owner's asset pack (docs/ASSET_SHOPPING_LIST.md): photoreal vehicles, people, HDRIs, textures, sounds

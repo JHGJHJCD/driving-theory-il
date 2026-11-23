@@ -13,3 +13,6 @@ Sounds (assets3d/audio, converted to mono OGG):
 The electric motor, tyre/wind noise, pedestrian-warning hum and horn are synthesized in js/sfx.js.
 
 Textures (assets3d/tex), from Poly Haven (polyhaven.com), CC0: "Asphalt 02" by Rob Tuytel (diffuse, normal, roughness; re-encoded JPEG); HDRI "Kloofendal 48d Partly Cloudy (Pure Sky)" by Greg Zaal (original) and Jarod Guest (sky edits).
+
+Electric car (assets3d/cars/ev-m3.glb): derived from the FBX "tesla-2018-model-3" supplied by the project owner (zip file name tesla-2018-model-3.zip). Author and licence of that model are NOT yet recorded here – the owner must confirm them (and add the required credit) before the app is published. The model is a reproduction of a branded vehicle: keep it out of a public release unless the licence and trademark position are clear. The built-in generic electric car (js/ev3d.js, own code) is the fallback.
+Converted by tools/assets3d/ev_extract.mjs (exterior only, interior removed) and ev_finish.mjs (decimation, normals, textures re-attached, meshopt compression; decoder vendor/jsm/meshopt_decoder.module.js, MIT).

@@ -11,6 +11,7 @@ import { GLTFLoader } from '../vendor/jsm/GLTFLoader.js';
 import { clone as cloneSkinned } from '../vendor/jsm/SkeletonUtils.js';
 import { RoomEnvironment } from '../vendor/jsm/RoomEnvironment.js';
 import { buildEV } from './ev3d.js';
+import { MeshoptDecoder } from '../vendor/jsm/meshopt_decoder.module.js';
 import { h } from './ui.js';
 import * as sfx from './sfx.js';
 
@@ -127,7 +128,7 @@ export function place(obj, p) { obj.position.x = p.x; obj.position.z = p.z; obj.
 
 // ---------------------------------------------------------------- assets
 const BASE = new URL('../assets3d/', import.meta.url);
-const loader = new GLTFLoader();
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const cache = new Map();   // path -> Promise<gltf>; models are shared between scenes (geometry and materials are never disposed: userData.shared)
 export function loadModel(path) {
   if (!cache.has(path)) cache.set(path, loader.loadAsync(new URL(path + '.glb', BASE).href).then(g => {
@@ -141,7 +142,7 @@ export function loadModel(path) {
 export const VEHICLES = {
   sedan: { f: 'cars/sedan', L: 4.3, W: 1.85, rot: Math.PI }, sports: { f: 'cars/sedan-sports', L: 4.4, W: 1.85, rot: Math.PI }, hatch: { f: 'cars/hatchback-sports', L: 4.0, W: 1.8, rot: Math.PI },
   suv: { f: 'cars/suv', L: 4.6, W: 1.95, rot: Math.PI }, suvlux: { f: 'cars/suv-luxury', L: 4.8, W: 1.95, rot: Math.PI }, van: { f: 'cars/van', L: 4.8, W: 1.95, rot: Math.PI },
-  evm3: { f: 'cars/ev-m3', L: 4.69, W: 2.1, rot: 0, paint: 'paint', lampY: 0.86, headY: 0.66, lampX: 0.55, fallback: true },
+  evm3: { f: 'cars/ev-m3', L: 4.69, W: 2.1, rot: 0, paint: 'paint', ownLamps: true, fallback: true },
   taxi: { f: 'cars/taxi', L: 4.5, W: 1.85, rot: Math.PI }, police: { f: 'cars/police', L: 5.0, W: 1.9, rot: Math.PI }, ambulance: { f: 'cars/ambulance', L: 5.6, W: 2.0, rot: Math.PI },
   firetruck: { f: 'cars/firetruck', L: 8.0, W: 2.5, rot: Math.PI }, delivery: { f: 'cars/delivery', L: 6.4, W: 2.2, rot: Math.PI }, pickup: { f: 'cars/truck', L: 5.0, W: 1.95, rot: Math.PI },
   lorry: { f: 'cars/garbage-truck', L: 8.5, W: 2.5, rot: Math.PI }, tractor: { f: 'cars/tractor', L: 3.6, W: 1.9, rot: Math.PI },
@@ -266,9 +267,14 @@ export function world(C) {
         wrap.scale.set(rotated ? s : sx, s, rotated ? sx : s); const outer = new THREE.Group(); outer.add(wrap); outer.rotation.y = spec.rot; inner.add(outer);
         // cars of the same file get different colours through a light tint on the body material only
         const H = sz.y * s; g.userData.dims.H = H; g.userData.eye = [-spec.W * 0.25, H * 0.95, -spec.L * 0.42];     // bonnet view: just behind the nose, so the (opaque) cabin never fills the picture
-        if (spec.paint) wrap.traverse(o => { if (!o.isMesh) return; if (o.material.name === spec.paint) { const c = new THREE.MeshPhysicalMaterial({ color: tint || 0xdddddd, metalness: 0.6, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.3 }); c.name = spec.paint; o.material = c; } else { o.material = o.material.clone(); o.material.userData = {}; o.material.envMapIntensity = 0.9; } });
+        if (spec.paint) wrap.traverse(o => { if (!o.isMesh) return; if (o.material.name === spec.paint) { const c = new THREE.MeshPhysicalMaterial({ color: tint || 0xdddddd, metalness: 0.6, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.3 }); c.name = spec.paint; o.material = c; } else { const m = o.material = o.material.clone(); m.userData = {}; m.envMapIntensity = 0.9;
+          if (spec.ownLamps) {                       // the model's own lights are driven through their material's emissive colour
+            const n = m.name, on = (list, col, ei) => { m.emissive = new THREE.Color(col); m.emissiveIntensity = ei; list.push(m); };
+            if (/rear light|breaklight|pantulan/i.test(n)) on(g.userData.brake, 0xff1a1a, 0.1); else if (/front light/i.test(n)) on(g.userData.head, 0xfff2d0, night ? 2.2 : 0.2);
+            else if (/indicator l/i.test(n)) on(g.userData.blink.L, 0xffa000, 0); else if (/indicator r/i.test(n)) on(g.userData.blink.R, 0xffa000, 0); } } });
         else if (tint) wrap.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData = {}; o.material.color.set(tint); } });
         shadows(outer);
+        if (spec.ownLamps) return;
         const mk = (c, em, ei) => new THREE.MeshStandardMaterial({ color: c, emissive: em, emissiveIntensity: ei, roughness: .4 });
         const zr = spec.L / 2 + 0.015, zy = spec.lampY ?? Math.max(0.5, H * 0.27), zyH = spec.headY ?? zy, xs = spec.lampX ?? spec.W * 0.33;
         const add = (mm, x, z, sw, sh, yy = zy) => { const q = new THREE.Mesh(new THREE.BoxGeometry(sw, sh, 0.06), mm); q.position.set(x, yy, z); inner.add(q); return q; };
