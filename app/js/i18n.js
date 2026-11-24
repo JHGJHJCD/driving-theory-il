@@ -117,6 +117,19 @@ const he = {
   'bk.errBig': 'הקובץ גדול מדי או ריק', 'bk.errNot': 'זה לא קובץ גיבוי של תאוריה לנהיגה', 'bk.errNewer': 'הגיבוי נוצר בגרסה חדשה יותר – רעננו ונסו שוב',
   'bk.errBad': 'הגיבוי פגום', 'bk.errCode': 'הקוד לא שלם – העתיקו אותו מתחילתו (TH1-…) ועד סופו', 'bk.errCodeSum': 'הקוד לא שלם או שהשתנה בהעתקה',
   'bk.errOld': 'הדפדפן הזה ישן מדי לקוד – השתמשו בקובץ', 'bk.errNoFile': 'לא נבחר קובץ', 'bk.saved': 'קובץ הגיבוי נשמר',
+  // v1.27 (fun home): next step, mascot, praise, celebrations
+  'nx.title': 'מה עושים עכשיו?', 'nx.exam': 'להמשיך את המבחן', 'nx.examD': 'המבחן ממתין לך עם הזמן שנשאר', 'nx.cont': 'להמשיך: {0}', 'nx.contD': 'ממשיכים בדיוק מהמקום שעצרת',
+  'nx.first': 'השיעור הראשון: {0}', 'nx.next': 'השיעור הבא: {0}', 'nx.lessonD': 'קצר, עם המחשות ושאלות בסוף', 'nx.daily': 'תרגול יומי: {0} שאלות', 'nx.dailyD': 'כמה דקות, ויש לך יום מוצלח',
+  'nx.review': 'חוזרים על {0} שאלות', 'nx.reviewD': 'שאלות שכדאי לרענן היום, כדי שלא יישכחו', 'nx.other': 'או תרגול מהיר של 10 שאלות', 'nx.more': 'עוד כלים', 'nx.moreD': 'חזרה על טעויות, שמורות, חיפוש ועוד',
+  'nx.howT': 'איך זה עובד? שלוש מילים:', 'nx.how': ['לומדים: שיעור קצר עם המחשה', 'מתרגלים: שאלות כמו במבחן, והטעויות חוזרות אליך', 'נבחנים: מבחן מדומה של 30 שאלות'],
+  'fun.ok': ['נכון!', 'יפה מאוד!', 'בדיוק!', 'מצוין!', 'אלוף!', 'פגיעה בול!', 'כל הכבוד!'],
+  'fun.bad': ['לא נורא, ככה לומדים. התשובה הנכונה מסומנת.', 'כמעט! התשובה הנכונה מסומנת, והשאלה תחזור אליך בקרוב.', 'אופס. בשביל זה מתרגלים. התשובה הנכונה מסומנת.'],
+  'fun.combo': '🔥 {0} נכונות ברצף!', 'fun.lvup': '⭐ עלית לשלב {0}! כל הכבוד', 'fun.goal': '🎯 היעד היומי הושלם! כל שאלה נוספת היא בונוס',
+  'fun.g.morning': ['בוקר טוב{0}! קפה, ואז כמה שאלות.', 'בוקר אור{0}! בואו נתחיל את היום בנסיעה קטנה.'], 'fun.g.noon': ['צהריים טובים{0}! זמן מצוין לתרגל.', 'שלום{0}! הכביש מחכה לך.'],
+  'fun.g.evening': ['ערב טוב{0}! עוד קצת ונסגור את היום בכיף.', 'היי{0}! כמה שאלות לפני שהולכים לישון?'], 'fun.g.night': ['לילה טוב{0}! אולי רק שאלה אחת לפני השינה?', 'עוד ער{0}? בואו נעשה שאלה או שתיים.'],
+  'fun.streak': 'וואו, {0} ימים ברצף! שומרים על הרצף', 'fun.done': 'היעד היומי הושלם. כל הכבוד! כל תרגול נוסף הוא בונוס',
+  'fun.s.top': 'מושלם! ציון מצטיין', 'fun.s.good': 'כל הכבוד! כמעט מושלם', 'fun.s.mid': 'מתקדמים יפה, עוד קצת ומגיעים', 'fun.s.low': 'כל התחלה קשה. הטעויות הן החומר הכי טוב ללמידה',
+  'ob.quick': 'דלגו על ההגדרות: רכב פרטי (B), בעברית',
 };
 const en = {
   'why.conflict': 'Bank vs law conflict: the official bank answer differs from the law text, so the lessons do not teach or explain this question. The question and bank answer are shown in the “From the official bank” lessons, next to the law text.',
@@ -229,6 +242,19 @@ const en = {
   'bk.errBig': 'The file is too big or empty', 'bk.errNot': 'This is not a Driving Theory IL backup', 'bk.errNewer': 'This backup is from a newer version – reload and try again',
   'bk.errBad': 'The backup is damaged', 'bk.errCode': 'The code is incomplete – copy it from the start (TH1-…) to the end', 'bk.errCodeSum': 'The code is incomplete or changed while copying',
   'bk.errOld': 'This browser is too old for codes – use a file', 'bk.errNoFile': 'No file selected', 'bk.saved': 'Backup file saved',
+  // v1.27 (fun home)
+  'nx.title': 'What now?', 'nx.exam': 'Continue the exam', 'nx.examD': 'Your exam is waiting, with the time you have left', 'nx.cont': 'Continue: {0}', 'nx.contD': 'Pick up exactly where you stopped',
+  'nx.first': 'First lesson: {0}', 'nx.next': 'Next lesson: {0}', 'nx.lessonD': 'Short, with demonstrations and questions at the end', 'nx.daily': 'Daily practice: {0} questions', 'nx.dailyD': 'A few minutes and your day is a win',
+  'nx.review': 'Review {0} questions', 'nx.reviewD': 'Questions worth refreshing today so they stick', 'nx.other': 'or a quick 10-question practice', 'nx.more': 'More tools', 'nx.moreD': 'Mistakes review, saved questions, search and more',
+  'nx.howT': 'How it works, in three words:', 'nx.how': ['Learn: a short lesson with a demo', 'Practise: exam-style questions, and your mistakes come back', 'Test: a mock exam of 30 questions'],
+  'fun.ok': ['Correct!', 'Nicely done!', 'Exactly!', 'Excellent!', 'Champion!', 'Bullseye!', 'Well done!'],
+  'fun.bad': ["No worries, that's how we learn. The correct answer is marked.", 'So close! The correct answer is marked, and this question will come back soon.', "Oops. That's what practice is for. The correct answer is marked."],
+  'fun.combo': '🔥 {0} correct in a row!', 'fun.lvup': '⭐ You reached level {0}! Well done', 'fun.goal': '🎯 Daily goal done! Every extra question is a bonus',
+  'fun.g.morning': ['Good morning{0}! Coffee first, then a few questions.', "Rise and shine{0}! Let's start the day with a short drive."], 'fun.g.noon': ['Good afternoon{0}! A great time to practise.', 'Hello{0}! The road is waiting.'],
+  'fun.g.evening': ['Good evening{0}! A little more, then we close the day happy.', 'Hey{0}! A few questions before bed?'], 'fun.g.night': ['Good night{0}! Maybe just one question before sleep?', "Still up{0}? Let's do a question or two."],
+  'fun.streak': 'Wow, {0} days in a row! Keep the streak alive', 'fun.done': "Daily goal done. Champion! Any more practice is a bonus",
+  'fun.s.top': 'Perfect! Top driver', 'fun.s.good': 'Well done! Almost perfect', 'fun.s.mid': 'Nice progress, a little more and you are there', 'fun.s.low': 'Every start is hard. Mistakes are the best study material',
+  'ob.quick': 'Skip the setup: private car (B), Hebrew',
 };
 const D = { he, en };
 let ui = 'he';

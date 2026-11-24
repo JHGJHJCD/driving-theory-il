@@ -440,3 +440,32 @@ line.vz-span { stroke: #f3a712; stroke-width: 6; fill: none; }
 .vz3-quiz .answer { display: block; width: 100%; min-height: 48px; text-align: start; white-space: normal; }
 .vz3-quiz .answer.ok { border-color: #1b8a4b; background: rgba(27,138,75,.12); }
 .vz3-quiz .answer.bad { border-color: #c0392b; background: rgba(192,57,43,.12); }
+
+/* v1.27 – fun home: "what now" card, mascot, confetti burst, praise */
+.nx { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: var(--on-primary); border-radius: 20px; padding: 16px; margin: 6px 0 14px; display: grid; gap: 12px; box-shadow: var(--shadow); }
+.nx-t { margin: 0; font-size: .95em; font-weight: 700; opacity: .95; }
+.nx-go { display: flex; align-items: center; gap: 14px; background: var(--surface); color: var(--text); text-decoration: none; border-radius: 16px; padding: 16px 18px; min-height: 64px; box-shadow: 0 3px 0 rgba(0, 0, 0, .18); transition: transform .12s; }
+.nx-go:hover, .nx-go:focus-visible { transform: translateY(-2px); }
+.nx-go:active { transform: translateY(1px); }
+.nx-go > .ic { width: 1.8em; height: 1.8em; color: var(--primary); flex: none; }
+.nx-go > .ic.go { width: 1.3em; height: 1.3em; margin-inline-start: auto; }
+.nx-gt { display: grid; gap: 2px; min-width: 0; } .nx-gt b { font-size: 1.15em; line-height: 1.25; } .nx-gt small { color: var(--muted); }
+.nx-other { color: var(--on-primary); text-align: center; font-size: .9em; text-decoration: underline; }
+.mascot { display: flex; align-items: center; gap: 14px; }
+.mcar { font-size: 2.6em; line-height: 1; flex: none; display: inline-block; animation: bob 2.6s ease-in-out infinite; }
+.mbubble { position: relative; margin: 0; background: var(--surface); color: var(--text); border-radius: 16px; padding: 10px 14px; font-weight: 600; box-shadow: 0 2px 0 rgba(0, 0, 0, .12); }
+.mbubble::before { content: ''; position: absolute; top: 50%; inset-inline-start: -6px; width: 12px; height: 12px; background: var(--surface); transform: translateY(-50%) rotate(45deg); }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-5px) rotate(-3deg); } }
+.how { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px 16px 14px; margin: 0 0 14px; }
+.how ol { counter-reset: s; list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.how li { counter-increment: s; display: flex; align-items: center; gap: 10px; }
+.how li::before { content: counter(s); flex: none; width: 1.9em; height: 1.9em; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-weight: 700; }
+.more { margin: 12px 0; } .more > summary { display: grid; gap: 2px; padding: 12px 14px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); cursor: pointer; list-style: none; }
+.more > summary::-webkit-details-marker { display: none; } .more > summary small { color: var(--muted); }
+.more[open] > summary { margin-bottom: 10px; }
+.burst { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 60; }
+.burst i { position: absolute; top: -18px; left: var(--x); width: 9px; height: 15px; border-radius: 2px; background: var(--c); animation: bfall var(--t) var(--d) cubic-bezier(.3, .55, .5, 1) both; }
+@keyframes bfall { from { transform: translate(0, 0) rotate(0); opacity: 1; } to { transform: translate(var(--dx), 108vh) rotate(var(--r)); opacity: .85; } }
+.fb.good { animation: pop .35s ease-out; } @keyframes pop { 0% { transform: scale(.85); opacity: 0; } 60% { transform: scale(1.08); } 100% { transform: none; opacity: 1; } }
+.sum-mood { font-size: 3.2em; line-height: 1; margin: 0; animation: bob 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .burst { display: none; } }
