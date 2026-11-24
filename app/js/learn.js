@@ -254,7 +254,7 @@ export function makeLearn(ctx) {
       n.s ? h('p', { class: 'refs' }, ref(n.s, n.x)) : null))) : null;
     const bankCard = v => h('article', { class: 'excard bankcard', 'data-q': v.id }, qimg(v), he(h('p', { class: 'qtext sm' }, h('small', { class: 'muted', text: t('ln.q', v.id) + ' · ' }), v.q)),
       opts(v), h('p', { class: 'small muted banktag', text: t('ln.bankTag') }), lawNote(L?.notes?.[v.id]));
-    const vizNode = v => (VIZ[v] ? he(VIZ[v]({ lesson: l.id, cls: c })) : null);
+    const vizNode = v => { const [k, arg] = v.split(':'); return VIZ[k] ? he(VIZ[k]({ lesson: l.id, cls: c, arg })) : null; };   // 'sc:302' = one sign on the road (viz.js)
     // v1.21 (1b): in the step and summary views a rule shows its one-line statement first; the rest of our wording opens under 'למה?'.
     // The citation chips stay visible; the quoted official passage is in the chip, word for word.
     const ruleLi = (r, n, split) => { const [a, b] = split ? firstLine(r.t) : [r.t, ''];

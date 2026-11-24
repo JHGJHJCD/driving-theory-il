@@ -8,11 +8,11 @@ import { h } from '../ui.js';
 import { junction } from './_junction.js';
 
 // ---------------------------------------------------------------- small helpers
-const lerp = (a, b, u) => a + (b - a) * u;
+export const lerp = (a, b, u) => a + (b - a) * u;
 const smooth = u => u * u * (3 - 2 * u);
-const seg = (t, a, b) => Math.min(1, Math.max(0, (t - a) / (b - a)));            // 0 before a, 1 after b
+export const seg = (t, a, b) => Math.min(1, Math.max(0, (t - a) / (b - a)));      // 0 before a, 1 after b
 // speed profile (m/s, piecewise linear) -> a function t -> z for a car driving north (-Z); the car is at zAlign at time tAlign
-function run(vKeys, tAlign, zAlign) {
+export function run(vKeys, tAlign, zAlign) {
   const dt = 0.02, T = vKeys[vKeys.length - 1][0], n = Math.ceil(T / dt) + 1, s = new Float32Array(n), v = t => { for (let i = 1; i < vKeys.length; i++) if (t <= vKeys[i][0]) { const [t0, v0] = vKeys[i - 1], [t1, v1] = vKeys[i]; return lerp(v0, v1, (t - t0) / (t1 - t0)); } return vKeys[vKeys.length - 1][1]; };
   for (let i = 1; i < n; i++) s[i] = s[i - 1] + v((i - 0.5) * dt) * dt;
   const at = t => { const f = Math.min(n - 1, Math.max(0, t / dt)), i = Math.floor(f), u = f - i; return lerp(s[i], s[Math.min(n - 1, i + 1)], u); };
@@ -28,7 +28,7 @@ const stripedArm = (W, THREE_, len = 4.3) => {            // a barrier arm lying
 
 // ---------------------------------------------------------------- the five scenes
 // each builder returns { duration, events:[[t,text]], sign:Vector3 (sign head), target:Vector3 (the reason), cam, update(t) }
-const SIGNS = [
+export const SIGNS = [
   { id: 'rail', n: '133', kind: 'rail', chip: 'מסילת ברזל', arrow: 'מפגש מסילת ברזל', build(x) {
     const { C, W, scene, car } = x, ZR = -14; straight(C, W);
     for (const s of [-0.72, 0.72]) W.box(0, 0.16, ZR + s, 240, 0.12, 0.1, 0x8a8f96, { metalness: 0.7, roughness: 0.35 });          // rails along X
@@ -89,7 +89,7 @@ const SIGNS = [
 ];
 
 // ---------------------------------------------------------------- orange pulsing arrow from the sign to its reason
-function makeArrow(p0, p1, text) {
+export function makeArrow(p0, p1, text) {
   const g = new THREE.Group(), mid = p0.clone().lerp(p1, 0.5); mid.y += 4.2;
   const curve = new THREE.QuadraticBezierCurve3(p0, mid, p1), M = new THREE.MeshBasicMaterial({ color: 0xff8a00, transparent: true, opacity: 0.95, depthTest: false });
   const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.13, 8, false), M); tube.renderOrder = 8;

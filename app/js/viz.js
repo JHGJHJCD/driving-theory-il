@@ -484,5 +484,18 @@ function with3d(key, make2d) {
     return h('div', { class: 'vz3-wrap' }, bar, host);
   };
 }
+// v1.27: one sign on the road (viz id 'sc:<sign number>', placed by data/fun.json): the 3D scene once it is on screen; without WebGL, or in 2D mode, the official picture and meaning
+const signCard = o => {
+  const n = String(o.arg || ''), host = h('div', { class: 'vz3-host sc-host', 'data-sign': n });
+  const still = () => loadSG().then(SG => host.replaceChildren(h('figure', { class: 'sc-still' },
+    SG.img[n] ? h('img', { src: 'img/q/' + SG.img[n], alt: 'תמרור מספר ' + n, width: 240, height: 135, loading: 'lazy' }) : '',
+    h('figcaption', { lang: 'he', dir: 'rtl', text: `תמרור ${n}${SG.e[n] ? ' – ' + SG.e[n].split(' · ')[0].split(/\.\s/)[0].trim().slice(0, 110) : ''}` }))))
+    .catch(() => host.replaceChildren(h('p', { class: 'small muted', text: 'תמרור ' + n })));
+  if (!webgl() || getMode() === '2d') { still(); return host; }
+  host.replaceChildren(h('p', { class: 'small muted', text: 'טוען תלת-ממד…' }));
+  const go = () => import('./viz3d.js').then(m => m.SCENES.signcard3d({ arg: n })).then(node => host.replaceChildren(node)).catch(still);
+  if ('IntersectionObserver' in window) { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); go(); } }); io.observe(host); } else go();
+  return host;
+};
 const BASE = { roadparts, leftturn, startcar, stopdist, priority, signs, speed, gap, overtake, crosswalk, parking, rail, blind, moto, signdict, duty, newdrv, accident, brakes, blowout, bac, dims, motojx, lamps, hands, load, kids, taxi, tractor };
-export const VIZ = Object.fromEntries(Object.entries(BASE).map(([k, f]) => [k, THREE_D.has(k) ? with3d(k, f) : f]));
+export const VIZ = { ...Object.fromEntries(Object.entries(BASE).map(([k, f]) => [k, THREE_D.has(k) ? with3d(k, f) : f])), sc: signCard };
