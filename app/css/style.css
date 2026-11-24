@@ -273,7 +273,7 @@ input[type="checkbox"], input[type="radio"] { min-width: 24px; min-height: 24px;
 .vz-ctl input[type="number"], .vz-ctl select { font: inherit; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); max-width: 12em; }
 .vz-out { font-weight: 700; margin: 4px 0; }
 .viz figcaption { display: grid; gap: 2px; margin-top: 6px; }
-.vz-alt { margin: 0; line-height: 1.6; }
+.vz-alt, .vz-alt-in { margin: 0; line-height: 1.6; }
 .vz-road { fill: var(--road, #4a5559); }
 .vz-mark { stroke: #fff; stroke-width: 2; }
 .vz-mark.dash { stroke-dasharray: 10 8; }

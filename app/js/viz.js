@@ -105,7 +105,7 @@ function signs() {
     const flat = svg('0 0 280 120', tri, circ, txt(60, 112, 'אזהרה – בדרך כלל'), txt(200, 112, 'הוריה או איסור – בדרך כלל'));
     stage.append(flat);
     // v1.26.13: with WebGL the flat drawing is replaced by four real signs in 3D (it stays as the fallback)
-    if (webgl()) import('./viz3d.js').then(m => m.SCENES.signshapes()).then(node => { if (stage.isConnected) { node.classList.remove('viz'); stage.replaceChildren(node); } }).catch(e => console.warn('signshapes 3D', e));   // inside this diagram's own .viz: one diagram, one card
+    if (webgl()) import('./viz3d.js').then(m => m.SCENES.signshapes()).then(node => { if (stage.isConnected) { node.classList.remove('viz'); node.querySelector('.vz-alt')?.classList.replace('vz-alt', 'vz-alt-in'); stage.replaceChildren(node); } }).catch(e => console.warn('signshapes 3D', e));   // inside this diagram's own .viz: one diagram, one card
     const intro = 'משולש שקודקודו למעלה הוא בדרך כלל תמרור אזהרה. עיגול הוא בדרך כלל תמרור הוריה או איסור. בחרו משפחה, ואז הקישו על תמונה של תמרור – אין צורך לדעת מספרים.';
     say('טוען את לוח התמרורים…');
     loadSG().then(D => { const B = signBrowser(D, 'sf', say); ctl.append(h('p', { class: 'lbl', text: 'בחרו משפחה:' }), B.tiles, B.grid); say(intro); },
