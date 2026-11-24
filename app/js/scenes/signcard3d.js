@@ -6,12 +6,14 @@ import { THREE, fig3, btn, sfx, reduced, LANE, LANE_W } from '../kit3d.js';
 import { h } from '../ui.js';
 import { junction } from './_junction.js';
 import { SIGNS, makeArrow, lerp, seg, run } from './signs3d.js';
+import { warnCard } from './_warn.js';
 
 // the junction scenes of signs3d.js, with a camera that no corner house stands in front of
-const fromSigns = n => { const s = SIGNS.find(x => x.n === n); return { ...s, build(x) { return { ...s.build(x), cam: { yaw: 0.28, pitch: 0.5, dist: 36, target: new THREE.Vector3(0, 0, 3) } }; } }; };
+const fromSigns = (n, junctionCam = true) => { const s = SIGNS.find(x => x.n === n); return { ...s, build(x) { const sc = s.build(x); return junctionCam ? { ...sc, cam: { yaw: 0.28, pitch: 0.5, dist: 36, target: new THREE.Vector3(0, 0, 3) } } : sc; } }; };
 const CARDS = {
   '302': fromSigns('302'),
   '301': fromSigns('301'),
+  '133': fromSigns('133', false), '135': fromSigns('135', false), '136': fromSigns('136', false),   // rail crossing, pedestrian crossing, pedestrians: the signs3d.js scenes
 
   // 703: a green light. The car waits at red while the crossing traffic passes, then the light turns green and it goes on.
   '703': { arrow: 'אור ירוק: מותר להתקדם', build(x) {
@@ -36,14 +38,17 @@ const CARDS = {
       update(t) { car.position.set(LANE, 0, R.z(t)); truck.position.set(LANE, 0, -10 - 3 * t); W.setBrake(car, R.v(t) < R.v(Math.max(0, t - 0.15)) - 0.2 && t < 6); } }; } },
 };
 
+const RAIL = ['128', '129', '130', '131', '132', '134'];   // all the rail-crossing signs play the rail crossing scene
+const cardOf = n => CARDS[n] || (RAIL.includes(n) ? CARDS['133'] : warnCard(n));   // _warn.js: the other warning signs, by hazard template
+
 export default function signcard3d(o = {}) {
-  const n = String(o.arg || '302'), card = CARDS[n] || CARDS['302'], num = CARDS[n] ? n : '302';
+  const n = String(o.arg || '302'), card = cardOf(n) || CARDS['302'], num = cardOf(n) ? n : '302';
   return fig3('תמרור ' + num, 'לפי לוח התמרורים הרשמי (gov.il); התנועה בסצנה להמחשה', async ({ C, W, ctl, say }) => {
     const { scene, view } = C;
     const SG = await fetch(new URL('../../data/signs.json', import.meta.url)).then(r => { if (!r.ok) throw new Error('signs'); return r.json(); });
     W.env({ ground: 'grass', size: 200, shadowSize: 50 });
     const car = W.vehicle('ev', { name: 'me' }); scene.add(car); W.label(car, 'אתה', { size: 1.2, bg: 'rgba(42,111,219,.95)' });
-    const script = card.build({ C, W, scene, car }), arrow = makeArrow(script.sign, script.target, card.arrow); scene.add(arrow);
+    const script = card.build({ C, W, scene, car, SG }), arrow = makeArrow(script.sign, script.target, card.arrow); scene.add(arrow);
     view.driver = null; view.goal = { ...script.cam, target: script.cam.target.clone() }; Object.assign(view, { yaw: script.cam.yaw, pitch: script.cam.pitch, dist: script.cam.dist });
     let t = reduced() ? script.hold : 0, playing = !reduced(), evIdx = -1;
     const playB = btn('', () => { sfx.click(); if (t >= script.duration - 0.01) { t = 0; evIdx = -1; } playing = !playing; sync(); }, 'btn small primary');
