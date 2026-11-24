@@ -23,6 +23,15 @@ export function pieces(text) {
   return out.flatMap(p => { const r = []; for (let i = 0; i < p.length; i += MAX_PIECE) r.push(p.slice(i, i + MAX_PIECE)); return r; });
 }
 
+/** the words of a lesson card worth reading aloud: its text, without buttons, links, diagrams, source chips, hidden or folded parts and the card's own heading */
+export function readable(root) {
+  const c = root.cloneNode(true);
+  c.querySelectorAll('button:not(.answer), a, select, input, textarea, canvas, svg, figure, .vizs, .vz3-wrap, details:not(.qfold), .qopen, .lawref, #st-h, [aria-hidden="true"], .sr-only, script, style').forEach(e => e.remove());
+  c.querySelectorAll('details:not([open]) > :not(summary)').forEach(e => e.remove());         // a folded answer is for the listener to think about first
+  c.querySelectorAll('p, li, h1, h2, h3, h4, div, section, tr, dt, dd, summary').forEach(e => e.append('\n'));
+  return c.textContent.replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
+}
+
 function browserSpeak(text, lang, rate, onend) {
   const s = synth(); if (!s) { onend?.(); return false; }
   s.cancel();

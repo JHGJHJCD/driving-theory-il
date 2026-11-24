@@ -245,7 +245,7 @@ export function makeLearn(ctx) {
       const b = e.currentTarget; b.setAttribute('aria-pressed', 'true');
       // the steps views read the card on screen; the full view reads the whole lesson
       const cur = document.querySelector('.lstep');
-      const speakText = cur ? [l.title, cur.innerText].join('\n') : bank ? [l.title, ...bank.map(v => v.q + '\n' + v.a[v.c])].join('\n')
+      const speakText = cur ? [l.title, tts.readable(cur)].join('\n') : bank ? [l.title, ...bank.map(v => v.q + '\n' + v.a[v.c])].join('\n')
         : [l.title, ...l.body, ...l.rules.map(r => r.t), ...l.mnem.map(m => m.t)].join('\n');
       tts.speak(speakText, 'he', prof()?.rate || 1, () => b.setAttribute('aria-pressed', 'false'));
     }, 'btn small', 'vol', { 'aria-pressed': 'false' }) : null;
