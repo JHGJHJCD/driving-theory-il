@@ -10,7 +10,7 @@ export default function crosswalk3d() {
     W.stopLine(LANE, STOP + 3.4, LANE * 2 - 0.6); W.stopLine(-LANE, STOP + 3.4, LANE * 2 - 0.6);
     W.sign('crossing', { x: 7.4, z: ZB + 3.2, ry: -Math.PI / 2 + 0.25 }); W.sign('crossing', { x: -7.4, z: ZB - 3.2, ry: Math.PI / 2 + 0.25 });
     W.street({ z0: -110, z1: 90, xLeft: -9.2, xRight: 9.2, seed: 5 });
-    const me = W.vehicle('ev', { name: 'me' }), other = W.vehicle('ev', { name: 'other' }), ped = W.walker('prop2/woman_walk_01', { h: 1.68, fallbackIndex: 1 });
+    const me = W.vehicle('ev', { name: 'me' }), other = W.vehicle('ev', { name: 'other' }), ped = W.person(0, { anim: 'idle', height: 1.72 });
     C.scene.add(me, other, ped); W.label(me, 'אתה', { size: 1.3, bg: 'rgba(42,111,219,.95)' });
     const car = (x, z) => ({ x, z }), ST = [[car(LANE, 22), car(-LANE, 12), -6.2, 'אתה בנתיב הימני. הרכב בנתיב השמאלי מאט לקראת מעבר החצייה.'],
       [car(LANE, 8), car(-LANE, STOP), -6.2, 'הרכב בנתיב השמאלי עצר לפני המעבר. ייתכן שהוא מסתיר הולך רגל – לכן גם אתה מאט ועוצר.'],

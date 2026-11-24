@@ -166,7 +166,7 @@ export const VEHICLES = {
 };
 const EV_MODELS = ['evm3', 'polestar', 'etron', 'su7'];
 const EV_PAINT = [0x6c7077, 0xe9ecef, 0x2b4a8c, 0xb3262e, 0x1c1e22, 0x9aa3ad]; let evCount = 0;   // electric cars get different paint in turn
-const PEOPLE = ['character-male-a', 'character-male-b', 'character-male-c', 'character-male-d', 'character-male-e', 'character-male-f', 'character-female-a', 'character-female-b', 'character-female-c', 'character-female-d', 'character-female-e', 'character-female-f'];
+const PEOPLE = ['character-male-a', 'character-male-b', 'character-male-c', 'character-male-d', 'character-male-e', 'character-male-f'];
 
 // ---------------------------------------------------------------- textures drawn here (no image downloads)
 const texCache = new Map();
