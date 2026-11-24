@@ -21,7 +21,19 @@
 <header class="top">
   <a class="brand" href="#/home"><img src="icons/icon-192.png" alt="" width="32" height="32"><span data-t="app.title">תאוריה לנהיגה</span></a>
 </header>
-<main id="app" tabindex="-1"><noscript>האפליקציה דורשת JavaScript.</noscript></main>
+<main id="app" tabindex="-1">
+  <!-- Static text for crawlers, link checkers and no-JS visitors; the app replaces everything inside #app as soon as it starts. -->
+  <div class="screen">
+    <h1>תאוריה לנהיגה</h1>
+    <p>אפליקציה חינמית לתרגול למבחן התאוריה בישראל, לפי מאגר השאלות הרשמי של משרד התחבורה. כוללת תרגול לפי נושאים, מאמן תמרורים, מבחן לדוגמה, חזרה על טעויות, והסברים מונפשים בתלת-ממד.</p>
+    <ul>
+      <li>עובדת גם בלי אינטרנט (אחרי הטעינה הראשונה)</li>
+      <li>ללא הרשמה, ללא פרסומות וללא מעקב. ההתקדמות נשמרת רק במכשיר שלך</li>
+      <li>לא מוצר רשמי של משרד התחבורה</li>
+    </ul>
+    <noscript><p>האפליקציה דורשת JavaScript כדי לפעול.</p></noscript>
+  </div>
+</main>
 <nav id="nav" class="nav" hidden></nav>
 <div id="update" class="update" role="status" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
