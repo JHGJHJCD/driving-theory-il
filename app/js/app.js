@@ -149,11 +149,12 @@ function welcome() {
   screen(t('ob.welcome'),
     h('img', { class: 'hero', src: 'img/hero.svg', alt: '', width: 360, height: 170 }),
     h('p', { class: 'lead', text: t('ob.intro') }),
+    // v1.26.13: the buttons come right after the intro, so they are visible without scrolling on a desktop screen
+    h('div', { class: 'row' }, link(t('ob.start'), '#/onboard/1', 'btn primary big'), link(t('ob.restore'), '#/settings', 'btn ghost')),
+    h('p', { class: 'row' }, btn(t('ob.quick'), () => { draft.cls = 'B'; draft.lang = 'he'; finishOnboard(); }, 'btn', 'car', { id: 'ob-quick' })),
     h('ul', { class: 'points' }, t('ob.points').map(s => h('li', {}, icon('check'), h('span', { text: s })))),
     h('p', { class: 'disc', role: 'note' }, icon('info'), h('span', { text: t('disc.short') })),
     bankNotice(),
-    h('div', { class: 'row' }, link(t('ob.start'), '#/onboard/1', 'btn primary big'), link(t('ob.restore'), '#/settings', 'btn ghost')),
-    h('p', { class: 'row' }, btn(t('ob.quick'), () => { draft.cls = 'B'; draft.lang = 'he'; finishOnboard(); }, 'btn', 'car', { id: 'ob-quick' })),
     h('p', { class: 'small' }, h('a', { href: '#/about', text: t('set.about') })),
     h('div', { class: 'ui-switch' }, ['he', 'en'].map(l => btn(l === 'he' ? 'עברית' : 'English', () => { draft.ui = l; setUi(l); applyPrefs(); welcome(); }, 'chip', null, { 'aria-pressed': String(uiLang() === l), lang: l }))));
 }
@@ -255,7 +256,6 @@ function home() {
 /** v1.27: the one most useful thing to do now – an exam in progress, the lesson to continue / start, the review of what is due, or the daily practice */
 function nextStep() {
   const c = cls(), ls = lessonsFor(c), dn = dailyIds().length, due = dueList().length;
-  if (st.loadExam()) return { href: '#/exam', ic: 'clock', title: t('nx.exam'), sub: t('nx.examD') };
   if (ls.length) {
     const sts = ls.map(l => lessonStatus(l, ls)), cur = sts.findIndex(s => !s.mastered);
     if (cur >= 0 && sts[cur].unlocked) {
@@ -269,7 +269,7 @@ function nextStep() {
 }
 function nextCard(d) {
   const p = prof(), n = nextStep(), name = p.name ? ', ' + p.name : '', streak = st.streak();
-  const hello = d[0] >= p.goal ? t('fun.done') : streak >= 3 && Math.random() < 0.35 ? t('fun.streak', streak) : line(t('fun.g.' + daypart())).replace('{0}', name);
+  const hello = d[0] >= p.goal ? t('fun.done') : streak >= 3 && Math.random() < 0.35 ? t('fun.streak', streak) : line(t('fun.g.' + daypart())).replace('{0}', () => name);
   return h('section', { class: 'nx', 'aria-labelledby': 'nx-h' }, funOn() ? mascot(hello) : null, h('h2', { id: 'nx-h', class: 'nx-t', text: t('nx.title') }),
     h('a', { class: 'nx-go', id: 'nx-go', href: n.href }, icon(n.ic), h('span', { class: 'nx-gt', lang: n.he ? 'he' : null }, h('b', { text: n.title }), h('small', { lang: uiLang(), text: n.sub })), icon(uiLang() === 'he' ? 'arrowS' : 'arrowE', 'ic go')),
     n.daily ? null : h('a', { class: 'nx-other', href: '#/practice/mix', text: t('nx.other') }));
@@ -420,7 +420,7 @@ function renderQ() {
     ok ? sfx.correct() : sfx.wrong();
     paint(); if (ok) checkBadges(); else s.badgeLater = true;
     // v1.27: small celebrations – a new level, or the daily goal reached
-    if (fun) { if (st.level().lv > lv0) { toast(t('fun.lvup', st.level().lv)); burst(); } else if (g0 < prof().goal && g0 + 1 >= prof().goal) { toast(t('fun.goal')); burst(30); } }
+    if (fun) { if (st.level().lv > lv0) { toast(t('fun.lvup', st.level().lv)); burst(); } if (g0 < prof().goal && g0 + 1 >= prof().goal && st.level().lv === lv0) { toast(t('fun.goal')); burst(30); } }
   }
   function paint() {
     if (!s.answered) return;
