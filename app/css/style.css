@@ -450,7 +450,7 @@ line.vz-span { stroke: #f3a712; stroke-width: 6; fill: none; }
 .nx-go > .ic { width: 1.8em; height: 1.8em; color: var(--primary); flex: none; }
 .nx-go > .ic.go { width: 1.3em; height: 1.3em; margin-inline-start: auto; }
 .nx-gt { display: grid; gap: 2px; min-width: 0; } .nx-gt b { font-size: 1.15em; line-height: 1.25; } .nx-gt small { color: var(--muted); }
-.nx-other { color: var(--on-primary); text-align: center; font-size: .9em; text-decoration: underline; }
+.nx-other { color: var(--on-primary); text-align: center; font-size: .9em; text-decoration: underline; padding-block: 4px; }
 .mascot { display: flex; align-items: center; gap: 14px; }
 .mcar { font-size: 2.6em; line-height: 1; flex: none; display: inline-block; animation: bob 2.6s ease-in-out infinite; }
 .mbubble { position: relative; margin: 0; background: var(--surface); color: var(--text); border-radius: 16px; padding: 10px 14px; font-weight: 600; box-shadow: 0 2px 0 rgba(0, 0, 0, .12); }

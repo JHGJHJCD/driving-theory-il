@@ -23,7 +23,8 @@ if (shard) { const i = +shard[1] - 1, n = +shard[2]; for (let j = keys.length - 
       const total = await p.locator('figure button').count(); let clicked = 0;
       for (let i = 0; i < Math.min(total, 16); i++) { const bt = p.locator('figure button').nth(i); try { if (await bt.isDisabled()) continue; await bt.evaluate(b => b.click(), null, { timeout: 120000 }); clicked++; await p.waitForTimeout(300); } catch (e) { errs.push('click ' + i + ': ' + e.message.split('\n')[0].slice(0, 80)); } }
       await p.waitForTimeout(800);
-      const ok = !errs.length && info.frames > 1 && info.kids > 15 && seen.size > 12;
+      const MIN_MESHES = { signshapes: 10 };   // the sign board is four signs on poles (13 meshes) by design; every other scene needs more than 15
+      const ok = !errs.length && info.frames > 1 && info.kids > (MIN_MESHES[k] ?? 15) && seen.size > 12;
       if (!ok) fail++;
       console.log(`${ok ? 'ok  ' : 'FAIL'} ${k}: frames ${info.frames}, meshes ${info.kids}, tones ${seen.size}, buttons clicked ${clicked}${errs.length ? ', errors: ' + [...new Set(errs)].slice(0, 3).join(' | ') : ''}`);
     } catch (e) { fail++; console.log(`FAIL ${k}: ${e.message.split('\n')[0]}`); }
