@@ -1,0 +1,7 @@
+# No `log` directive on purpose: access logs would contain the secret room codes in URLs.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		flush_interval -1   # don't buffer long-polling responses
+	}
+}
