@@ -381,6 +381,7 @@ export function makeLearn(ctx) {
       const note = resumed ? h('p', { class: 'notice resume', role: 'note' }, icon('repeat'), h('span', { text: t('st.resumed') + ' ' }),
         btn(t('st.restart'), () => { note.remove(); go(0, true); }, 'btn small ghost')) : null;
       function go(n, user) {
+        tts.stop();                                   // moving to another card ends the reading of the previous one
         idx = n; st.setLpos(l.id, { [key]: n, ['m' + key]: Math.max(n, +saved['m' + key] || 0) }); saved['m' + key] = Math.max(n, +saved['m' + key] || 0);
         const x = steps[n], k = partOf(starts, n), kEnd = (starts[k + 1] ?? N) - 1;
         const partTxt = P > 1 ? t('st.part', k + 1, P) + ' · ' : '';
