@@ -229,7 +229,9 @@ input[type="checkbox"], input[type="radio"] { min-width: 24px; min-height: 24px;
 .lsec { margin: 18px 0; } .lsec h2 { font-size: 1.15em; margin: 0 0 8px; }
 .lbody p { margin: 0 0 10px; line-height: 1.7; }
 .rules { padding-inline-start: 1.3em; margin: 0; display: grid; gap: 10px; } .rules li { line-height: 1.6; }
-.rules li > span:first-child { display: block; }
+.rules li > span:first-child, .rules li > .funline + span { display: block; }
+.funline { margin: 0 0 6px; font-weight: 700; color: var(--accent); }   /* v1.27: the joke line above a rule (data/fun.json) */
+.sc-still { margin: 0; display: grid; gap: 6px; } .sc-still img { max-width: 100%; height: auto; border-radius: 10px; }
 .refs { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .lawref { display: inline-block; font-size: .85em; max-width: 100%; }
 .lawref summary { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; padding: 3px 10px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--line); color: var(--primary); list-style: none; min-height: 32px; }

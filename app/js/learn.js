@@ -7,11 +7,13 @@ import * as st from './store.js';
 import * as tts from './tts.js';
 import { VIZ } from './viz.js';
 import { buildSteps, minutes, firstLine, partStarts, partOf, grouped } from './steps.js';
-let L = null, SRC = {};
+let L = null, SRC = {}, FUN = {};
 export const QC_N = 3;
 export const QUIZ_N = 6, MASTER_PCT = 80;
 export async function loadLessons(getJSON) {
+  const funP = getJSON('data/fun.json').then(x => (x && typeof x.lessons === 'object' ? x.lessons : {}), () => ({}));   // v1.27: optional, the lessons work without it
   try { const [a, b] = await Promise.all([getJSON('data/lessons.json'), getJSON('data/sources.json')]); L = a; SRC = b; } catch { L = null; }
+  FUN = await funP;
 }
 export const lessonsFor = c => (L?.lessons || []).filter(l => l.cls.includes(c));
 // v1.15 (review #11 F1): a question of another class reached via search still finds its lesson (opened read-only)
@@ -220,7 +222,10 @@ export function makeLearn(ctx) {
       gal: (l.gal || []).filter(q => byId.has(q)).map(q => byId.get(q)) };
   }
   /** the steps of a lesson for this class and view (also used by the path page for minutes) */
-  function stepsOf(l, c, v = lview()) { const d = lessonData(l, c); return buildSteps(l, v, { lab: labOf, q: q => byId.get(q), pb: d.pb, bank: d.bank, gal: d.gal }); }
+  // v1.27: the fun layer (data/fun.json), keyed by lesson id and the rule's source id; the 'מצחיק' switch in the settings turns it off
+  const funOn = () => prof()?.fun !== false;
+  const funOf = l => { const m = {}; if (funOn()) (l.rules || []).forEach((r, i) => { const f = FUN[l.id]?.[r.s]; if (f) m[i] = f; }); return m; };
+  function stepsOf(l, c, v = lview()) { const d = lessonData(l, c); return buildSteps(l, v, { lab: labOf, q: q => byId.get(q), pb: d.pb, bank: d.bank, gal: d.gal, fun: funOf(l) }); }
   const lessonMin = (l, c) => minutes(stepsOf(l, c, 'steps').reduce((a, s) => a + s.w, 0));
   function lesson(id, sub) {
     const c = cls(), ls = lessonsFor(c), own = ls.find(x => x.id === id), l = own || (sub === 'peek' ? anyLesson(id) : null);
@@ -257,8 +262,8 @@ export function makeLearn(ctx) {
     const vizNode = v => { const [k, arg] = v.split(':'); return VIZ[k] ? he(VIZ[k]({ lesson: l.id, cls: c, arg })) : null; };   // 'sc:302' = one sign on the road (viz.js)
     // v1.21 (1b): in the step and summary views a rule shows its one-line statement first; the rest of our wording opens under 'למה?'.
     // The citation chips stay visible; the quoted official passage is in the chip, word for word.
-    const ruleLi = (r, n, split) => { const [a, b] = split ? firstLine(r.t) : [r.t, ''];
-      return h('li', { value: n + 1 }, h('span', { class: b ? 'rt1' : null, text: a }),
+    const ruleLi = (r, n, split) => { const [a, b] = split ? firstLine(r.t) : [r.t, ''], fj = funOn() ? FUN[l.id]?.[r.s]?.j : null;
+      return h('li', { value: n + 1 }, fj ? he(h('p', { class: 'funline', text: fj })) : null, h('span', { class: b ? 'rt1' : null, text: a }),
         b ? h('details', { class: 'rmore' }, h('summary', { text: t('st.why') }), he(h('p', { text: b }))) : null, refs(r.s, r.also, r.x)); };
     const galList = qs => h('ul', { class: 'gal' }, qs.map(v => h('li', {}, h('img', { src: 'img/q/' + v.i, alt: t('q.img', v.id), loading: 'lazy', width: 160, height: 90 }), he(h('span', { text: v.a[v.c] })), ref('Q:' + v.id))));
     const exCard = (x, fold) => { const v = byId.get(x.q);

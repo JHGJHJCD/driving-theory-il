@@ -42,6 +42,7 @@ export function cleanState(raw) {
     theme: ['auto', 'light', 'dark'].includes(p.theme) ? p.theme : 'auto', goal: int(p.goal, 5, 200, 20),
     tts: p.tts === true, rate: typeof p.rate === 'number' && p.rate >= 0.5 && p.rate <= 1.5 ? p.rate : 1, big: p.big === true,
     // v1.21: lesson view and font-size level survive a backup/restore
+    ...(p.fun === false ? { fun: false } : {}),   // v1.27: the fun layer is on unless switched off
     ...(['steps', 'quick', 'full'].includes(p.lnv) ? { lnv: p.lnv } : {}), ...(Number.isInteger(p.fsz) && p.fsz >= 0 && p.fsz <= 4 ? { fsz: p.fsz } : {}),
   } : null;
   if (isObj(raw.q)) { let n = 0; for (const k of keys(raw.q)) { if (++n > 5000) break; const v = raw.q[k], id = +k;

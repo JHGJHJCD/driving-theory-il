@@ -612,6 +612,9 @@ async function settings(sec) {
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: p.tts, disabled: !tts.supported(), onchange: e => upd('tts', e.target.checked) }), h('span', { text: t('set.ttsOn') })),
       field(t('set.rate'), sel('sr', [['0.8', '0.8×'], ['1', '1×'], ['1.2', '1.2×']], String(p.rate), v => upd('rate', +v))),
       h('p', { class: 'small muted', text: t('set.ttsNote') })));
+    kids.push(h('section', { class: 'card' }, h('h2', { text: t('set.fun') }),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'fun-on', checked: p.fun !== false, onchange: e => upd('fun', e.target.checked) }), h('span', { text: t('set.funOn') })),
+      h('p', { class: 'small muted', text: t('set.funNote') })));
   }
   kids.push(h('section', { class: 'card', id: 'sound' }, h('h2', { text: t('set.sfx') }),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'sfx-on', checked: sfx.enabled(), onchange: e => { sfx.setEnabled(e.target.checked); if (e.target.checked) sfx.correct(); } }), h('span', { text: t('set.sfxOn') })),

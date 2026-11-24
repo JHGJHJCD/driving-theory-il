@@ -58,8 +58,9 @@ export function buildSteps(l, view, o) {
     // two heavy visualisations on one rule would overfill a card: the extra one moves to the next rule
     const nR = (l.rules || []).length;
     for (let i = 0; i < nR - 1; i++) while ((byR[i] || []).length > 1 && vw(byR[i]) > MAX_W - 20) (byR[i + 1] ||= []).unshift(byR[i].pop());
-    pack('rules', (l.rules || []).map((r, i) => { const [a, b] = firstLine(r.t);
-      return { r: i, viz: byR[i] || [], w: wc(a) + (b ? 2 : 0) + labs(lab, r.s, r.also) + vw(byR[i]) }; }));
+    // v1.27: the fun layer (o.fun: rule index → {j: joke line, fig: sign number}) adds a one-sign 3D card before the rule and a joke line above it
+    pack('rules', (l.rules || []).map((r, i) => { const [a, b] = firstLine(r.t), f = (o.fun || {})[i];
+      return { r: i, viz: f?.fig ? [...(byR[i] || []), 'sc:' + f.fig] : byR[i] || [], w: wc(a) + (b ? 2 : 0) + labs(lab, r.s, r.also) + vw(byR[i]) + (f ? wc(f.j) + (f.fig ? VIZ_W + 20 : 0) : 0) }; }));
     if (!(l.rules || []).length && (l.viz || []).length) pack('rules', [{ viz: l.viz, w: vw(l.viz) }]);
     if (!quick) {
       const gal = o.gal || [];
