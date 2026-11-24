@@ -5,7 +5,10 @@ const synth = () => ('speechSynthesis' in self ? speechSynthesis : null);
 const browserVoice = lang => (synth()?.getVoices() || []).find(v => v.lang?.toLowerCase().startsWith(BCP[lang])) || null;
 const SR = 24000, PIECE = 600, MAX_PIECE = 1000;      // piece sizes in characters; the helper accepts up to 1200
 let gemini = false;                                   // does the helper answer and hold a key?
-fetch('api/speak/ping', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => { gemini = !!j?.gemini; }).catch(() => {});
+// Ask the helper only when the page is served by it (serve.py: loopback, port 8765). Any other server answers 404, which the browser logs as a console error.
+if (['127.0.0.1', 'localhost'].includes(location.hostname) && location.port === '8765') {
+  fetch('api/speak/ping', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => { gemini = !!j?.gemini; }).catch(() => {});
+}
 let ctx = null, ctl = null, gen = 0, live = false, srcs = [], finish = null;
 
 export const voiceFor = lang => (gemini ? { name: 'Gemini' } : browserVoice(lang));
