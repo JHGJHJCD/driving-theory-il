@@ -54,7 +54,7 @@ export const SIGNS = [
   { id: 'crossing', n: '135', kind: 'warnPed', chip: 'מעבר חצייה', arrow: 'מעבר חצייה להולכי רגל', build(x) {
     const { C, W, car } = x, ZC = -12; straight(C, W); W.zebra(0, ZC, LANE_W * 2 - 0.8, { depth: 3.2 }); W.stopLine(LANE, ZC + 4.2, LANE_W - 0.6); W.stopLine(-LANE, ZC - 4.2, LANE_W - 0.6);
     W.sign('warnPed', { x: 5.4, z: 20, ry: 0, size: 1.8 });
-    const ped = W.walker('prop2/woman_walk_01', { h: 1.68, fallbackIndex: 1 }); x.scene.add(ped);
+    const ped = W.person(0, { anim: 'idle', height: 1.72 }); x.scene.add(ped);
     const R = run([[0, 12], [2.8, 12], [7, 0], [10.4, 0], [13.6, 12], [20, 12]], 7, -4.4);
     return { duration: 18, hold: 8.5, sign: new THREE.Vector3(5.4, 3.0, 20), target: new THREE.Vector3(0, 1.4, ZC), cam: { yaw: 0.85, pitch: 0.4, dist: 46, target: new THREE.Vector3(0, 0, 4) },
       events: [[0, 'התמרור מזהיר: מעבר חצייה להולכי רגל בקרבת מקום. הרכב מתקרב.'], [4.5, 'הולכת רגל מתחילה לחצות במעבר החצייה.'], [7, 'הרכב עוצר לפני מעבר החצייה.'], [10.4, 'ההולכת סיימה לחצות את נתיב הרכב והרכב ממשיך.']],
