@@ -169,6 +169,14 @@ ok((207, 'TR:72(א)(7)') in exs and (88, 'TR:48(ג)') in exs, 'citations: Q207�
 ok('TR:47(ו)' in rs('overtake') and {'TR:117(ב)', 'TR:117(ג)'} <= set(rs('rail')), 'overtake 47(ו) exception; rail 117(ב)+(ג)')
 ok("A1" in T('js', 'elig.js') and '221(א)(1)' in T('js', 'elig.js'), 'A1 line in elig.js')
 
+
+# v1.25.6: the page policy must let the 3D scenes work (blob: texture fetches, WebAssembly for the meshopt decoder) without opening eval or inline scripts
+_csp = re.search(r'Content-Security-Policy" content="([^"]*)"', T('index.html'))[1]
+_d = {x.split()[0]: x.split()[1:] for x in _csp.split(';') if x.strip()}
+ok("blob:" in _d['connect-src'] and "'self'" in _d['connect-src'], 'CSP: connect-src allows blob: (GLTFLoader texture fetches)')
+ok("'wasm-unsafe-eval'" in _d['script-src'] and "'unsafe-eval'" not in _d['script-src'] and "'unsafe-inline'" not in _d['script-src'], "CSP: script-src has 'wasm-unsafe-eval' only (no 'unsafe-eval', no inline)")
+ok(all("'unsafe-inline'" not in v and "'unsafe-eval'" not in v for k, v in _d.items()) and "'none'" in _d['object-src'], 'CSP: nothing else loosened')
+
 # 5b. v1.3: official sources, notes, diagrams, sign texts
 LJ = J('data', 'lessons.json'); NT = LJ.get('notes', {})
 ok(all(k in NT for k in ('1192', '40', '592')), 'bank-vs-law notes for Q1192, Q40, Q592')

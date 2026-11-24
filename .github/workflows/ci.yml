@@ -55,3 +55,11 @@ jobs:
           python3 -m http.server 8787 --bind 127.0.0.1 >/dev/null 2>&1 &
           sleep 2
           NODE_PATH=/tmp/pw/node_modules SHARD=${{ matrix.shard }}/5 node tools/test/scenes3d.js
+      - name: CSP check on the real lesson page (one shard)
+        if: matrix.shard == 1
+        working-directory: app
+        run: |
+          (python3 -m http.server 8788 --bind 127.0.0.1 >/dev/null 2>&1 &)
+          sleep 2
+          NODE_PATH=/tmp/pw/node_modules node tools/test/csp3d.js http://127.0.0.1:8788/
+          NODE_PATH=/tmp/pw/node_modules node tools/test/signsworld.js http://127.0.0.1:8788/

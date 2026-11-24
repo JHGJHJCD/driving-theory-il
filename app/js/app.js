@@ -288,14 +288,24 @@ function cards(mode) {
   }
   card();
 }
+// v1.26: "signs on the road" – a 3D scene per sign (js/scenes/signs3d.js), loaded only when opened
+const webglOk = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
+function signsWorld() {
+  const host = h('div', { class: 'vz3-wrap', lang: 'he', dir: 'rtl' }, h('p', { class: 'small muted', text: 'טוען תלת-ממד…' }));
+  screen(t('sg.worldT'), h('p', { text: t('sg.worldD') }), host, h('div', { class: 'row' }, link(t('sg.title'), '#/signs', 'btn ghost')));
+  if (!webglOk()) { host.replaceChildren(h('p', { class: 'warn-note', text: t('sg.worldNo') })); return; }
+  import('./scenes/signs3d.js').then(m => { if (document.body.contains(host)) host.replaceChildren(m.default()); }).catch(() => host.replaceChildren(h('p', { class: 'warn-note', text: t('sg.worldNo') })));
+}
 function signs(go, sub) {
   const ids = signPool();
   if (go === 'cards') return cards(sub);
+  if (go === 'world') return signsWorld();
   if (go === 'go') return startSession('signs', pick(ids, 10), t('sg.title'), '#/signs/go');
   const sample = Q.find(p => p.id === ids[0]);
   screen(t('sg.title'), h('p', { text: t('sg.hint') }), h('p', { class: 'sub', text: t('pr.stats', ids.length, Math.round(frac(ids) * 100)) }),
     sample && h('img', { class: 'qimg', src: 'img/q/' + sample.i, alt: t('q.img', sample.id), loading: 'lazy', width: 320, height: 180 }),
     h('div', { class: 'row' }, link(t('sg.start'), '#/signs/go', 'btn primary big', 'sign')),
+    h('div', { class: 'row' }, link(t('sg.world'), '#/signs/world', 'btn ghost', 'sign')),
     fcAll().length ? h('section', { class: 'card', 'aria-labelledby': 'fc-h' }, h('h2', { id: 'fc-h', class: 'h3', text: t('fc.title') }),
       h('p', { class: 'small', text: t('fc.hint', fcAll().length) }),
       h('p', { class: 'small muted', id: 'fc-stat', text: t('fc.stat', fcAll().filter(n => (st.fcard(n)?.[0] || 0) >= 3).length, fcAll().filter(n => st.fcard(n) && st.fcard(n)[1] <= today()).length) }),
