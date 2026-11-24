@@ -7,7 +7,8 @@ import * as sfx from './sfx.js';
 import { VERSION } from './version.js';
 import { VIZ } from './viz.js';
 import { ELIG, lawUrl } from './elig.js';
-import { makeLearn, loadLessons, lessonFrac, lessonsFor, masteredCount, explain, whyBox, lessonHref, coverPanel } from './learn.js';
+import { makeLearn, loadLessons, lessonFrac, lessonsFor, masteredCount, explain, whyBox, lessonHref, coverPanel, status as lessonStatus } from './learn.js';
+import { burst, line, daypart, mascot } from './fun.js';
 const COVH = ['ab.covCls', 'ab.covN', 'ab.covFull', 'ab.covStrict', 'ab.covAny', 'ab.covNoSrc', 'ab.covBank', 'ab.covPart', 'ab.covNoBank'];
 const pc = v => v == null || v === '' ? '' : (+v).toFixed(1) + '%';
 const { state: S, save, today, CLASSES, LANGS, EXAM } = st;
@@ -33,6 +34,7 @@ const lessonFor = id => why(id)?.lesson || null;
 async function loadLang(l) { if (l !== 'he' && !TR[l]) { try { TR[l] = await getJSON(`data/q.${l}.json`); } catch { TR[l] = {}; } } }
 const prof = () => S().profile;
 const cls = () => prof()?.cls || 'B';
+const funOn = () => prof()?.fun !== false;   // v1.27: the 'fun' switch in the settings also covers celebrations, praise and the mascot
 function view(id, forceHe = false) {
   const p = byId.get(id), l = prof()?.lang || 'he', tr = !forceHe && l !== 'he' && TR[l]?.[id];
   return tr ? { ...p, q: tr[0], a: tr[1], c: tr[2], lang: l, tr: true } : { ...p, lang: 'he', tr: false };
@@ -147,10 +149,12 @@ function welcome() {
   screen(t('ob.welcome'),
     h('img', { class: 'hero', src: 'img/hero.svg', alt: '', width: 360, height: 170 }),
     h('p', { class: 'lead', text: t('ob.intro') }),
+    // v1.26.13: the buttons come right after the intro, so they are visible without scrolling on a desktop screen
+    h('div', { class: 'row' }, link(t('ob.start'), '#/onboard/1', 'btn primary big'), link(t('ob.restore'), '#/settings', 'btn ghost')),
+    h('p', { class: 'row' }, btn(t('ob.quick'), () => { draft.cls = 'B'; draft.lang = 'he'; finishOnboard(); }, 'btn', 'car', { id: 'ob-quick' })),
     h('ul', { class: 'points' }, t('ob.points').map(s => h('li', {}, icon('check'), h('span', { text: s })))),
     h('p', { class: 'disc', role: 'note' }, icon('info'), h('span', { text: t('disc.short') })),
     bankNotice(),
-    h('div', { class: 'row' }, link(t('ob.start'), '#/onboard/1', 'btn primary big'), link(t('ob.restore'), '#/settings', 'btn ghost')),
     h('p', { class: 'small' }, h('a', { href: '#/about', text: t('set.about') })),
     h('div', { class: 'ui-switch' }, ['he', 'en'].map(l => btn(l === 'he' ? 'עברית' : 'English', () => { draft.ui = l; setUi(l); applyPrefs(); welcome(); }, 'chip', null, { 'aria-pressed': String(uiLang() === l), lang: l }))));
 }
@@ -205,6 +209,9 @@ function home() {
     h('div', { class: 'row tight' }, link(t('bk.now'), '#/settings/backup', 'btn small primary'), btn(t('bk.later'), () => { bk.snoozeReminder(); home(); }, 'btn small ghost'))));
   const ex = st.loadExam();
   if (ex) kids.push(h('div', { class: 'banner', role: 'status' }, icon('clock'), h('p', { text: t('home.examOn') }), h('div', { class: 'row tight' }, link(t('home.examGo'), '#/exam', 'btn small primary'))));
+  kids.push(nextCard(d));
+  if (!st.hasProgress()) kids.push(h('section', { class: 'how', 'aria-labelledby': 'how-h' }, h('h2', { id: 'how-h', class: 'h3', text: t('nx.howT') }),
+    h('ol', {}, t('nx.how').map(s => h('li', {}, h('span', { text: s }))))));
   kids.push(h('p', { class: 'sub', text: t('home.cls', clsName(p.cls)) }));
   kids.push(h('section', { class: 'kpis', 'aria-label': t('st.title') },
     h('div', { class: 'kpi', title: t('home.freezeHint') }, icon('flame', 'ic accent'), h('b', { text: streak }), h('span', { text: t('home.streak') }), h('small', { class: 'frz', text: '❄ ' + t('home.freeze', st.freezes()) })),
@@ -217,9 +224,13 @@ function home() {
     nL ? tile('#/learn', 'learn', t('home.learn'), t('home.learnD', masteredCount(p.cls), nL), masteredCount(p.cls) < nL ? 'hl' : '') : null,
     tile('#/practice/mix', 'repeat', t('home.quick'), t('home.quickD')),
     tile('#/signs', 'sign', t('home.signs'), t('home.signsD', signPool().length)),
-    tile('#/exam', 'exam', t('home.exam'), t('home.examD', EXAM.n, EXAM.min), nL && masteredCount(p.cls) < nL ? '' : 'hl'),
-    tile('#/review', 'repeat', t('home.review'), due ? t('home.reviewD', due) : (mist ? t('rv.due', 0, mist) : t('home.reviewNone')), due ? 'warn' : ''),
-    tile('#/bookmarks', 'star', t('home.bm'), t('home.bmD', S().bm.length)));
+    tile('#/exam', 'exam', t('home.exam'), t('home.examD', EXAM.n, EXAM.min), nL && masteredCount(p.cls) < nL ? '' : 'hl'));
+  // v1.27: fewer choices on the home screen – the rarer tools live behind one 'more' button (open when there is something to review today)
+  const more = h('details', { class: 'more', open: due > 0 }, h('summary', {}, h('b', { text: t('nx.more') }), h('small', { text: t('nx.moreD') })),
+    h('div', { class: 'tiles' },
+      tile('#/review', 'repeat', t('home.review'), due ? t('home.reviewD', due) : (mist ? t('rv.due', 0, mist) : t('home.reviewNone')), due ? 'warn' : ''),
+      tile('#/bookmarks', 'star', t('home.bm'), t('home.bmD', S().bm.length))),
+    h('p', { class: 'row tight center' }, link(t('se.title'), '#/search', 'btn ghost small', 'search'), link(t('home.parent'), '#/parent', 'btn ghost small', 'user'), link(t('set.about'), '#/about', 'btn ghost small', 'info')));
   // v1.22: today's plan – the daily practice and the weak spots, both from this learner's own answers on this device
   const dIds = dailyIds(), dDue = dIds.filter(st.isDue).length, dNew = dIds.filter(id => !st.info(id)).length, ws = weakSpots();
   const wName = w => (w.l ? w.l.title : t('topic.' + w.k)) + ` (${Math.round(w.acc * 100)}%)`;
@@ -238,9 +249,30 @@ function home() {
       h('a', { href: '#/practice/' + s.k, 'aria-current': i === cur ? 'step' : null },
         ring(s.f, 52, 6), h('span', { class: 'stop-t' }, h('b', { text: t('topic.' + s.k) }), h('small', { text: t('pr.stats', s.n, Math.round(s.f * 100)) })), i === cur && icon('car', 'ic car')))),
       h('li', { class: 'stop finish' + (cur === -1 ? ' cur' : '') }, h('a', { href: '#/exam' }, h('span', { class: 'flagdot' }, icon('flag')), h('span', { class: 'stop-t' }, h('b', { text: t('home.finish') }), h('small', { text: t('home.examD', EXAM.n, EXAM.min) })))))));
-  kids.push(h('p', { class: 'row tight center' }, link(t('se.title'), '#/search', 'btn ghost small', 'search'), link(t('home.parent'), '#/parent', 'btn ghost small', 'user'), link(t('set.about'), '#/about', 'btn ghost small', 'info')));
+  kids.push(more);
   kids.push(h('p', { class: 'disc small', role: 'note', text: t('disc.short') }));
   screen(t('home.hi', p.name ? ', ' + p.name : ''), ...kids);
+}
+/** v1.27: the one most useful thing to do now – an exam in progress, the lesson to continue / start, the review of what is due, or the daily practice */
+function nextStep() {
+  const c = cls(), ls = lessonsFor(c), dn = dailyIds().length, due = dueList().length;
+  if (ls.length) {
+    const sts = ls.map(l => lessonStatus(l, ls)), cur = sts.findIndex(s => !s.mastered);
+    if (cur >= 0 && sts[cur].unlocked) {
+      const l = ls[cur], here = st.lastLesson() === l.id && (st.lpos(l.id)?.s || 0) > 0;
+      const k = here ? 'nx.cont' : sts.every(s => !s.read) ? 'nx.first' : 'nx.next';
+      return { href: '#/learn/' + l.id, ic: 'book', title: t(k, l.title), sub: t(here ? 'nx.contD' : 'nx.lessonD'), he: true };
+    }
+  }
+  return due ? { href: '#/practice/daily', ic: 'repeat', title: t('nx.review', Math.min(dn, due)), sub: t('nx.reviewD'), daily: true }
+    : { href: '#/practice/daily', ic: 'repeat', title: t('nx.daily', dn), sub: t('nx.dailyD'), daily: true };
+}
+function nextCard(d) {
+  const p = prof(), n = nextStep(), name = p.name ? ', ' + p.name : '', streak = st.streak();
+  const hello = d[0] >= p.goal ? t('fun.done') : streak >= 3 && Math.random() < 0.35 ? t('fun.streak', streak) : line(t('fun.g.' + daypart())).replace('{0}', () => name);
+  return h('section', { class: 'nx', 'aria-labelledby': 'nx-h' }, funOn() ? mascot(hello) : null, h('h2', { id: 'nx-h', class: 'nx-t', text: t('nx.title') }),
+    h('a', { class: 'nx-go', id: 'nx-go', href: n.href }, icon(n.ic), h('span', { class: 'nx-gt', lang: n.he ? 'he' : null }, h('b', { text: n.title }), h('small', { lang: uiLang(), text: n.sub })), icon(uiLang() === 'he' ? 'arrowS' : 'arrowE', 'ic go')),
+    n.daily ? null : h('a', { class: 'nx-other', href: '#/practice/mix', text: t('nx.other') }));
 }
 const tile = (href, ic, title, sub, cls = '') => h('a', { class: 'tile ' + cls, href }, icon(ic), h('b', { text: title }), h('small', { text: sub }));
 
@@ -381,17 +413,21 @@ function renderQ() {
     h('span', { class: 'ans-n', text: n + 1 }), h('span', { class: 'ans-t', text: v.a[ai] }))));
   function answer(ai) {
     if (s.answered) return;
-    const ok = ai === v.c; s.answered = { ai, ok };
+    const ok = ai === v.c, lv0 = st.level().lv, g0 = (S().days[today()] || [0])[0], fun = funOn();
+    s.run = ok ? (s.run || 0) + 1 : 0;
+    s.answered = { ai, ok, msg: fun ? (ok ? line(t('fun.ok')) + (s.run >= 3 ? ' ' + t('fun.combo', s.run) : '') : line(t('fun.bad'))) : '' };
     st.record(id, ok); if (ok) s.ok++; else s.wrong.push(id);
     ok ? sfx.correct() : sfx.wrong();
     paint(); if (ok) checkBadges(); else s.badgeLater = true;
+    // v1.27: small celebrations – a new level, or the daily goal reached
+    if (fun) { if (st.level().lv > lv0) { toast(t('fun.lvup', st.level().lv)); burst(); } if (g0 < prof().goal && g0 + 1 >= prof().goal && st.level().lv === lv0) { toast(t('fun.goal')); burst(30); } }
   }
   function paint() {
     if (!s.answered) return;
     answers.querySelectorAll('.ans').forEach(b => { const i = +b.dataset.i; b.disabled = true; b.setAttribute('aria-disabled', 'true');
       if (i === v.c) { b.classList.add('ok'); b.append(icon('check', 'ic mark')); }
       else if (i === s.answered.ai && !s.answered.ok) { b.classList.add('bad'); b.append(icon('x', 'ic mark')); } });
-    fb.textContent = s.answered.ok ? t('q.correct') : t('q.wrong') + ' ' + v.a[v.c];
+    fb.textContent = s.answered.msg ? (s.answered.ok ? s.answered.msg : s.answered.msg + ' ' + v.a[v.c]) : s.answered.ok ? t('q.correct') : t('q.wrong') + ' ' + v.a[v.c];
     fb.className = 'fb ' + (s.answered.ok ? 'good' : 'bad');
     const wb = whyBox(why(id), s.answered.ok, cls()); whyHost.replaceChildren(...(wb ? [wb] : []));
     next.hidden = false; next.focus();
@@ -406,7 +442,9 @@ function summary() {
   if (s.kind === 'review') { S().badges.review ||= Date.now(); save(); }
   const les = s.lesson ? LRN.afterQuiz(s.lesson, s.ok, n) : [];
   checkBadges();
-  screen(t('sum.title'), h('div', { class: 'result' }, ring(s.ok / n, 120, 10, t('sum.score', s.ok, n)), h('p', { class: 'big-t', text: t('sum.score', s.ok, n) }), h('p', { class: 'accent', text: t('sum.xp', S().xp - s.xp0) })), ...les,
+  const fr = s.ok / n, fun = funOn(), mood = fr >= 0.9 ? ['🏆', 'top'] : fr >= 0.7 ? ['🎉', 'good'] : fr >= 0.5 ? ['💪', 'mid'] : ['🌱', 'low'];
+  if (fun && fr >= 0.8 && n >= 5) burst();
+  screen(t('sum.title'), h('div', { class: 'result' }, fun && h('p', { class: 'sum-mood', 'aria-hidden': 'true', text: mood[0] }), ring(fr, 120, 10, t('sum.score', s.ok, n)), h('p', { class: 'big-t', text: t('sum.score', s.ok, n) }), fun && h('p', { class: 'small', text: t('fun.s.' + mood[1]) }), h('p', { class: 'accent', text: t('sum.xp', S().xp - s.xp0) })), ...les,
     s.back ? h('div', { class: 'row' }, link(t('qc.back'), s.back, 'btn primary big', 'book')) : null,
     h('div', { class: 'row' }, s.wrong.length ? btn(t('sum.mist'), () => startSession('review', s.wrong.slice(), t('rv.title'), '#/review'), 'btn primary', 'repeat') : null,
       btn(t('sum.again'), () => { location.hash = s.again; route(); }, 'btn', 'repeat'), link(t('sum.home'), '#/home', 'btn ghost', 'home')));
@@ -542,6 +580,7 @@ function submitExam() {
         h('p', { class: 'ans-bad' }, icon('x'), h('span', { text: a ? t('ex.yours', va.a[a.ai]) : t('ex.none') })),
         h('p', { class: 'ans-ok' }, icon('check'), h('span', { text: t('ex.right', v.a[v.c]) })), learnLink(id)); })));
   exam = null; checkBadges();
+  if (pass && funOn()) burst(60);
 }
 function learnLink(id) {
   const l = lessonFor(id); if (!l) return null;
