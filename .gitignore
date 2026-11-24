@@ -2,3 +2,5 @@
 upstream/
 הקשר_נוכחי.md
 app/.git-old/
+local.json
+serve.log
